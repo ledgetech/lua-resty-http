@@ -34,11 +34,6 @@ __DATA__
             }
 
             ngx.status = status
-            
-            for k,v in pairs(headers) do
-            --    ngx.header[k] = v
-            end
-
             ngx.print(body)
             
             httpc:close()
