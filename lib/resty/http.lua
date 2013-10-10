@@ -4,7 +4,6 @@ local str_lower = string.lower
 local str_upper = string.upper
 local str_find = string.find
 local str_sub = string.sub
-local tbl_insert = table.insert
 local tbl_concat = table.concat
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
