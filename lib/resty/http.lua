@@ -48,7 +48,7 @@ local function _format_request(params)
     local query = params.query or ""
     if query then
         if type(query) == "table" then
-            query = ngx_encode_args(params.query)
+            query = "?" .. ngx_encode_args(query)
         end
     end
 
