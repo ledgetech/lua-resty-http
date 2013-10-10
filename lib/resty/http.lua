@@ -45,7 +45,7 @@ local function _format_request(params)
     local headers = params.headers or {}
     local body = params.body
 
-    local query = params.query
+    local query = params.query or ""
     if query then
         if type(query) == "table" then
             query = ngx_encode_args(params.query)
@@ -60,9 +60,6 @@ local function _format_request(params)
         query,
         HTTP[version],
         -- Pre-allocate slots for minimum headers and carriage return.
-        true,
-        true,
-        true,
     }
     local c = 6 -- req table index - it's faster to do this inline vs table.insert
 
@@ -163,6 +160,7 @@ local function _receive_body(self, headers)
     else
         local encoding = headers["Transfer-Encoding"]
         if encoding and str_lower(encoding) == "chunked" then
+            ngx.log(ngx.NOTICE, "receiving chunked")
             body, err = _receive_chunked(sock)
         else
             body, err = sock:receive("*a")
@@ -191,14 +189,14 @@ local function _request_raw(self, params)
     end
     
     local body = params.body
-    local headers = params.headers
+    local headers = params.headers or {}
     
     -- Ensure minimal headers are set
     if body then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
-        headers["Host"] = host
+        headers["Host"] = self.host
     end
     if not headers["User-Agent"] then
         headers["User-Agent"] = USER_AGENT
@@ -207,20 +205,22 @@ local function _request_raw(self, params)
         headers["Connection"] = "Keep-Alive"
     end
 
+    params.headers = headers
+
     -- Format and send request
     local req = _format_request(params)
     ngx.log(ngx.NOTICE, "\n"..req)
     sock:send(req)
 
     local status = _receive_status(sock)
-    local headers = _receive_headers(self)
+    local r_headers = _receive_headers(self)
     local body = nil
 
     if _should_receive_body(params.method, status) then
-        body = _receive_body(self, headers)
+        body = _receive_body(self, r_headers)
     end
 
-    return status, headers, body
+    return status, r_headers, body
 end
 _M._request_raw = _request_raw
 
