@@ -59,6 +59,9 @@ local function _format_request(params)
         query,
         HTTP[version],
         -- Pre-allocate slots for minimum headers and carriage return.
+        true,
+        true,
+        true,
     }
     local c = 6 -- req table index - it's faster to do this inline vs table.insert
 
