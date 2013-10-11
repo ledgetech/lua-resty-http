@@ -13,6 +13,8 @@ local _M = {
     _VERSION = '0.01',
 }
 
+local mt = { __index = _M }
+
 
 local HTTP = {
     [1.0] = " HTTP/1.0\r\n",
@@ -21,14 +23,11 @@ local HTTP = {
 
 local USER_AGENT = "Resty/HTTP " .. _M._VERSION .. " (Lua)"
 
-local default_params = {
+local DEFAULT_PARAMS = {
     method = "GET",
     path = "/",
     version = 1.1,
 }
-
-
-local mt = { __index = _M }
 
 
 local function _should_receive_body(method, code)
@@ -183,7 +182,7 @@ local function _request_raw(self, params)
     local sock = self.sock
 
     -- Apply defaults
-    for k,v in pairs(default_params) do
+    for k,v in pairs(DEFAULT_PARAMS) do
         if not params[k] then
             params[k] = v
         end
