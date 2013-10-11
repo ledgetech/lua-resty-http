@@ -213,6 +213,14 @@ local function _request_raw(self, params)
     ngx.log(ngx.NOTICE, "\n"..req)
     sock:send(req)
 
+    -- Send the request body
+    if body then
+        local bytes, err = sock:send(body)
+        if not bytes then
+            return nil, err
+        end
+    end
+
     local status = _receive_status(sock)
     local r_headers = _receive_headers(self)
     local body = nil
