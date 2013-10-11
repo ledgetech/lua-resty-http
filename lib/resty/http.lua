@@ -162,7 +162,6 @@ local function _receive_body(self, headers)
     else
         local encoding = headers["Transfer-Encoding"]
         if encoding and str_lower(encoding) == "chunked" then
-            ngx.log(ngx.NOTICE, "receiving chunked")
             body, err = _receive_chunked(sock)
         else
             body, err = sock:receive("*a")

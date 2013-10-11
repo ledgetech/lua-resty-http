@@ -191,3 +191,33 @@ X-Header-B: 2
 [warn]
 
 
+=== TEST 7: HEAD has no body.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            
+            local status, headers, body = httpc:request{
+                method = "HEAD",
+                path = "/b"
+            }
+
+            if body then
+                ngx.print(body)
+            end
+            httpc:close()
+        ';
+    }
+    location = /b {
+        echo "OK";
+    }
+--- request
+GET /a
+--- response_body
+--- no_error_log
+[error]
+[warn]
+
+
