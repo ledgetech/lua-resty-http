@@ -243,8 +243,6 @@ GET /a
             end
 
             ngx.print(body)
-            
-            httpc:close()
         ';
     }
     location = /b {
