@@ -242,7 +242,27 @@ local function _receive_body(self, headers)
 end
 
 
-local function _request_raw(self, params)
+function _M.parse_uri(self, uri)
+    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], "jo")
+
+    if not m then
+        if err then
+            return nil, "failed to match the uri: " .. err
+        end
+
+        return nil, "bad uri"
+    end
+
+    local scheme = m[1] -- Not much we can do with https for now
+    local host =  m[2]
+    local port =  m[3] or 80
+    local path = m[4] or "/"
+
+    return scheme, host, port, path
+end
+
+
+function _M.request(self, params)
     local sock = self.sock
 
     -- Apply defaults
@@ -301,20 +321,26 @@ local function _request_raw(self, params)
 
     return status, r_headers, body
 end
-_M._request_raw = _request_raw
 
 
--- Choose between simple and raw interfaces.
-function _M.request(...)
-    return _request_raw(...)
---[[
-    local args = {...}
-    if type(args[1]) == "string" then
-        return _request_simple(...)
-    elseif type(args[1]) == "table" then
-        return _request_raw(...)
+function _M.request_uri(self, uri, params)
+    if not params then params = {} end
+
+    local scheme, host, port, path, query = self:parse_uri(uri)
+    ngx_log(ngx_DEBUG, path)
+    if path then params.path = path end
+
+    local c, err = self:connect(host, port)
+    if not c then
+        return nil, err
     end
-]]--
+
+    local status, headers, body = self:request(params)
+
+    -- TODO: keepalive / close logic
+    self:set_keepalive()
+
+    return status, headers, body
 end
 
 

@@ -3,7 +3,7 @@
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4) + 1;
+plan tests => repeat_each() * (blocks() * 4) + 2;
 
 my $pwd = cwd();
 
@@ -227,3 +227,38 @@ GET /a
 [warn]
 
 
+=== TEST 8: Simple URI interface
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local status, headers, body = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2")
+            
+            ngx.status = status
+
+            for k,v in pairs(headers) do
+                ngx.header[k] = v
+            end
+
+            ngx.print(body)
+            
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            for k,v in pairs(ngx.req.get_uri_args()) do
+                ngx.header["X-Header-" .. string.upper(k)] = v
+            end
+        ';
+    }
+--- request
+GET /a
+--- response_headers
+X-Header-A: 1
+X-Header-B: 2
+--- no_error_log
+[error]
+[warn]
