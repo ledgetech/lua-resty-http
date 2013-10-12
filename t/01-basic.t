@@ -25,8 +25,9 @@ __DATA__
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
-            
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
             local status, headers, body = httpc:request{
                 path = "/b"
             }
@@ -55,8 +56,9 @@ OK
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
-            
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
             local status, headers, body = httpc:request{
                 version = 1.0,
                 path = "/b"
@@ -86,7 +88,8 @@ OK
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local status, headers, body = httpc:request{
                 path = "/b"
@@ -120,7 +123,8 @@ OK
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local status, headers, body = httpc:request{
                 path = "/b"
@@ -153,7 +157,8 @@ x-value
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local status, headers, body = httpc:request{
                 query = {
@@ -197,7 +202,8 @@ X-Header-B: 2
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local status, headers, body = httpc:request{
                 method = "HEAD",

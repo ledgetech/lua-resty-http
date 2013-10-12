@@ -25,7 +25,8 @@ __DATA__
     location = /a {
         content_by_lua '
             local http = require "resty.http"
-            local httpc = http.connect("127.0.0.1", ngx.var.server_port)
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local status, headers, body = httpc:request{
                 body = "a=1&b=2&c=3",

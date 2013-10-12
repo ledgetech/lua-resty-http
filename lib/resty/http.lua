@@ -32,6 +32,67 @@ local DEFAULT_PARAMS = {
 }
 
 
+function _M.new(self)
+    local sock, err = ngx_socket_tcp()
+    if not sock then
+        return nil, err
+    end
+    return setmetatable({ sock = sock, host = nil }, mt)
+end
+
+
+function _M.set_timeout(self, timeout)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:settimeout(timeout)
+end
+
+
+function _M.connect(self, ...)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    self.host = select(1, ...)
+
+    return sock:connect(...)
+end
+
+
+function _M.set_keepalive(self, ...)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:setkeepalive(...)
+end
+
+
+function _M.get_reused_times(self)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:getreusedtimes()
+end
+
+
+function _M.close(self)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:close()
+end
+
+
 local function _should_receive_body(method, code)
     if method == "HEAD" then return nil end
     if code == 204 or code == 304 then return nil end
@@ -241,34 +302,6 @@ local function _request_raw(self, params)
     return status, r_headers, body
 end
 _M._request_raw = _request_raw
-
-
-function _M.connect(host, port)
-    local sock, err = ngx_socket_tcp()
-    if not sock then
-        return nil, err
-    end
-
-    local c, err = sock:connect(host, port)
-    if not c then
-        return nil, err
-    end
-
-    return setmetatable({ sock = sock, host = host, port = port }, mt)
-end
-
-
-function _M.close(self)
-    local sock = self.sock
-    local keepalive = self.keepalive
-    
-    if keepalive then
-        ngx_log(ngx_DEBUG, "Socket reused " .. sock:getreusedtimes() .. " times")
-        sock:setkeepalive()
-    else
-        sock:close()
-    end
-end
 
 
 -- Choose between simple and raw interfaces.
