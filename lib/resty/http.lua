@@ -7,6 +7,8 @@ local str_sub = string.sub
 local tbl_concat = table.concat
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
+local ngx_log = ngx.log
+local ngx_DEBUG = ngx.DEBUG
 
 
 local _M = {
@@ -210,7 +212,7 @@ local function _request_raw(self, params)
 
     -- Format and send request
     local req = _format_request(params)
-    ngx.log(ngx.NOTICE, "\n"..req)
+    ngx_log(ngx_DEBUG, "\n"..req)
     sock:send(req)
 
     -- Send the request body
@@ -261,7 +263,7 @@ function _M.close(self)
     local keepalive = self.keepalive
     
     if keepalive then
-        ngx.log(ngx.NOTICE, "Socket reused " .. sock:getreusedtimes() .. " times")
+        ngx_log(ngx_DEBUG, "Socket reused " .. sock:getreusedtimes() .. " times")
         sock:setkeepalive()
     else
         sock:close()
