@@ -139,9 +139,10 @@ local function _receive_chunked(sock)
             end
             chunks[c] = str
             c = c + 1
+
+            sock:receive(2) -- read \r\n
         end
 
-        sock:receive(2) -- read \r\n
     until length == 0
 
     return tbl_concat(chunks), nil
@@ -226,6 +227,13 @@ local function _request_raw(self, params)
 
     if _should_receive_body(params.method, status) then
         body = _receive_body(self, r_headers)
+    end
+
+    if r_headers["Trailer"] then
+        local trailers = _receive_headers(self)
+        for k,v in pairs(trailers) do
+            r_headers[k] = v
+        end
     end
 
     return status, r_headers, body
