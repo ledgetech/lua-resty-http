@@ -253,12 +253,14 @@ function _M.parse_uri(self, uri)
         return nil, "bad uri"
     end
 
-    local scheme = m[1] -- Not much we can do with https for now
-    local host =  m[2]
-    local port =  m[3] or 80
-    local path = m[4] or "/"
+    local t_uri = {
+        m[1],
+        m[2],
+        m[3] or 80,
+        m[4] or "/",
+    }
 
-    return scheme, host, port, path
+    return t_uri, nil
 end
 
 
@@ -326,8 +328,12 @@ end
 function _M.request_uri(self, uri, params)
     if not params then params = {} end
 
-    local scheme, host, port, path, query = self:parse_uri(uri)
-    ngx_log(ngx_DEBUG, path)
+    local parsed_uri, err = self:parse_uri(uri)
+    if not parsed_uri then
+        return nil, err
+    end
+
+    local scheme, host, port, path = unpack(parsed_uri)
     if path then params.path = path end
 
     local c, err = self:connect(host, port)
