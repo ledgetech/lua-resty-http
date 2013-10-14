@@ -9,6 +9,8 @@ local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
+local co_wrap = coroutine.wrap
+local co_yield = coroutine.yield
 
 
 local _M = {
@@ -177,36 +179,46 @@ local function _receive_headers(self)
 end
 
 
+local function _stream_chunked(sock)
+    return co_wrap(function()
+        repeat
+            local str, err = sock:receive("*l")
+            if not str then
+                return nil, err
+            end
+
+            local length = tonumber(str, 16)
+
+            if not length then
+                return nil, "unable to read chunksize"
+            end
+
+            if length > 0 then
+                local str, err = sock:receive(length)
+                if not str then
+                    return nil, err
+                end
+                co_yield(str)
+
+                sock:receive(2) -- read \r\n
+            end
+
+        until length == 0
+    end)
+end
+
+
 local function _receive_chunked(sock)
     local chunks = {}
     local c = 1
 
-    local size = 0
+    local reader = _stream_chunked(sock)
 
     repeat
-        local str, err = sock:receive("*l")
-        if not str then
-            return nil, err
-        end
-
-        local length = tonumber(str, 16)
-
-        if not length then
-            return nil, "unable to read chunksize"
-        end
-
-        if length > 0 then
-            local str, err = sock:receive(length)
-            if not str then
-                return nil, err
-            end
-            chunks[c] = str
-            c = c + 1
-
-            sock:receive(2) -- read \r\n
-        end
-
-    until length == 0
+        local chunk = reader()
+        chunks[c] = chunk
+        c = c + 1
+    until not chunk
 
     return tbl_concat(chunks), nil
 end
@@ -311,7 +323,11 @@ function _M.request(self, params)
     local body = nil
 
     if _should_receive_body(params.method, status) then
-        body = _receive_body(self, r_headers)
+        if params.stream_body == true then
+            body = _stream_chunked(self.sock)
+        else
+            body = _receive_body(self, r_headers)
+        end
     end
 
     if r_headers["Trailer"] then
