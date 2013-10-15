@@ -214,8 +214,9 @@ local function _receive_chunked(sock)
 
     local reader = _stream_chunked(sock)
 
+    local chunk
     repeat
-        local chunk = reader()
+        chunk = reader()
         chunks[c] = chunk
         c = c + 1
     until not chunk
@@ -318,17 +319,44 @@ function _M.request(self, params)
         end
     end
 
+    -- Receive the status and headers
     local status = _receive_status(sock)
     local r_headers = _receive_headers(self)
-    local body = nil
-
+    
+    local keepalive = true
+    
+    -- Receive the body
+    local body, err = nil, nil
     if _should_receive_body(params.method, status) then
-        if params.stream_body == true then
-            body = _stream_chunked(self.sock)
+        local length = tonumber(r_headers["Content-Length"])
+
+        if length then
+            body, err = sock:receive(length)
         else
-            body = _receive_body(self, r_headers)
+            local encoding = r_headers["Transfer-Encoding"]
+            ngx_log(ngx_DEBUG, encoding)
+
+            if encoding and str_lower(encoding) == "chunked" then
+                if params.stream_body == true then
+                    -- We'll return the iterator directly.
+                    body, err = _stream_chunked(sock)
+                else
+                    -- Recive and concatenate.
+                    body, err = _receive_chunked(sock)
+                end
+            else
+
+                body, err = sock:receive("*a")
+                keepalive = false
+            end
         end
     end
+
+
+    if not body then 
+        keepalive = false
+    end
+    self.keepalive = keepalive
 
     if r_headers["Trailer"] then
         local trailers = _receive_headers(self)
