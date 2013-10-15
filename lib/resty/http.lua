@@ -225,36 +225,6 @@ local function _receive_chunked(sock)
 end
 
 
-local function _receive_body(self, headers)
-    local sock = self.sock
-    local length = tonumber(headers["Content-Length"])
-    local body
-    local err
-
-    local keepalive = true
-
-    if length then
-        body, err = sock:receive(length)
-    else
-        local encoding = headers["Transfer-Encoding"]
-        if encoding and str_lower(encoding) == "chunked" then
-            body, err = _receive_chunked(sock)
-        else
-            body, err = sock:receive("*a")
-            keepalive = false
-        end
-    end
-
-    if not body then 
-        keepalive = false
-    end
-
-    self.keepalive = keepalive
-
-    return body
-end
-
-
 function _M.parse_uri(self, uri)
     local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], "jo")
 
