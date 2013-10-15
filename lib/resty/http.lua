@@ -180,30 +180,90 @@ end
 
 
 local function _stream_chunked(sock)
-    return co_wrap(function()
+    return co_wrap(function(max_chunk_size)
+        local remaining = 0
+
         repeat
-            local str, err = sock:receive("*l")
-            if not str then
-                return nil, err
-            end
+            local length = 0
 
-            local length = tonumber(str, 16)
+            if max_chunk_size and remaining > 0 then -- If we still have data on this chunk
 
-            if not length then
-                return nil, "unable to read chunksize"
+                if remaining > max_chunk_size then
+                    -- Consume up to max_chunk_size
+                    length = max_chunk_size
+                    remaining = remaining - max_chunk_size
+                else
+                    -- Consume all remaining
+                    length = remaining
+                    remaining = 0
+                end
+            else -- This is a fresh chunk 
+
+                -- Receive the chunk size
+                local str, err = sock:receive("*l")
+                if not str then
+                    co_yield(nil, err)
+                end
+
+                length = tonumber(str, 16)
+
+                if not length then
+                    co_yield(nil, "unable to read chunksize")
+                end
+
+                ngx_log(ngx_DEBUG, "new chunk: " .. length)
+
+                if max_chunk_size and length > max_chunk_size then
+                    -- Consume up to max_chunk_size
+                    remaining = length - max_chunk_size
+                    length = max_chunk_size
+                end
             end
 
             if length > 0 then
+                ngx_log(ngx_DEBUG, "receiving: " .. length)
                 local str, err = sock:receive(length)
                 if not str then
-                    return nil, err
+                    co_yield(nil, err)
                 end
                 co_yield(str)
 
-                sock:receive(2) -- read \r\n
+                -- If we're finished with this chunk, read the carriage return.
+                if remaining == 0 then
+                    sock:receive(2) -- read \r\n
+                end
             end
 
         until length == 0
+    end)
+end
+
+
+local function _stream_length(sock, content_length)
+    return co_wrap(function(max_chunk_size)
+        local received = 0
+        if not max_chunk_size then
+            co_yield(nil, "no chunk size specified")
+        else
+            repeat
+                local length = max_chunk_size
+                if received + length > content_length then
+                    length = content_length - received
+                end
+
+                if length > 0 then
+                    ngx_log(ngx_DEBUG, "receiving: " .. length)
+                    local str, err = sock:receive(length)
+                    if not str then
+                        co_yield(nil, err)
+                    end
+                    received = received + length
+
+                    co_yield(str)
+                end
+
+            until length == 0
+        end
     end)
 end
 
@@ -216,7 +276,10 @@ local function _receive_chunked(sock)
 
     local chunk
     repeat
-        chunk = reader()
+        chunk, err = reader()
+        if err then
+            return nil, err
+        end
         chunks[c] = chunk
         c = c + 1
     until not chunk
@@ -291,27 +354,32 @@ function _M.request(self, params)
 
     -- Receive the status and headers
     local status = _receive_status(sock)
-    local r_headers = _receive_headers(self)
+    local res_headers = _receive_headers(self)
     
     local keepalive = true
     
     -- Receive the body
     local body, err = nil, nil
     if _should_receive_body(params.method, status) then
-        local length = tonumber(r_headers["Content-Length"])
+        local length = tonumber(res_headers["Content-Length"])
 
         if length then
-            body, err = sock:receive(length)
+            if params.stream_response == true then
+                -- Return an iterator instead of reading the body.
+                body, err = _stream_length(sock, length)
+            else
+                -- Just read the whole thing.
+                body, err = sock:receive("*a")
+            end
         else
-            local encoding = r_headers["Transfer-Encoding"]
-            ngx_log(ngx_DEBUG, encoding)
+            local encoding = res_headers["Transfer-Encoding"]
 
             if encoding and str_lower(encoding) == "chunked" then
-                if params.stream_body == true then
+                if params.stream_response == true then
                     -- We'll return the iterator directly.
                     body, err = _stream_chunked(sock)
                 else
-                    -- Recive and concatenate.
+                    -- Receive and concatenate.
                     body, err = _receive_chunked(sock)
                 end
             else
@@ -322,20 +390,23 @@ function _M.request(self, params)
         end
     end
 
-
     if not body then 
         keepalive = false
     end
     self.keepalive = keepalive
 
-    if r_headers["Trailer"] then
+    if res_headers["Trailer"] then
         local trailers = _receive_headers(self)
         for k,v in pairs(trailers) do
-            r_headers[k] = v
+            res_headers[k] = v
         end
     end
 
-    return status, r_headers, body
+    if err then
+        return nil, err
+    else
+        return status, res_headers, body
+    end
 end
 
 

@@ -19,7 +19,7 @@ no_long_string();
 run_tests();
 
 __DATA__
-=== TEST 1: Trailers. Check Content-MD5 generated after the body is sent matches up.
+=== TEST 1: Streaming body ready returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -30,7 +30,7 @@ __DATA__
             
             local status, headers, body_reader = httpc:request{
                 path = "/b",
-                stream_body = true,
+                stream_response = true,
             }
 
             local chunks = {}
