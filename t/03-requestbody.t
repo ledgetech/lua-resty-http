@@ -36,7 +36,7 @@ __DATA__
                 }
             }
 
-            ngx.say(httpc:read_body(res.reader))
+            ngx.say(res:read_body())
             httpc:close()
         ';
     }

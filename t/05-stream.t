@@ -34,7 +34,7 @@ __DATA__
 
             local chunks = {}
             repeat
-                local chunk = res.reader()
+                local chunk = res.body_reader()
                 if chunk then
                     table.insert(chunks, chunk)
                 end

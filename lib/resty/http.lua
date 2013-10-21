@@ -303,6 +303,35 @@ function _M.parse_uri(self, uri)
     return t_uri, nil
 end
 
+local function _read_body(res)
+    local reader = res.body_reader
+
+    if not reader then 
+        -- Most likely HEAD or 304 etc.
+        return nil, "no body to be read"
+    end
+
+    local chunks = {}
+    local c = 1
+
+    local chunk
+    repeat
+        ngx_log(ngx_DEBUG, "calling reader")
+        chunk, err = reader()
+
+        if err then
+            return nil, err, tbl_concat(chunks) -- Return any data so far.
+        end
+        if chunk then
+            ngx_log(ngx_DEBUG, "got chunk of length: "..#chunk)
+            chunks[c] = chunk
+            c = c + 1
+        end
+    until not chunk
+
+    return tbl_concat(chunks)
+end
+
 
 function _M.request(self, params)
     -- Apply defaults
@@ -363,36 +392,13 @@ function _M.request(self, params)
     if err then
         return nil, err
     else
-        return { status = status, headers = res_headers, reader = body_reader }
+        return { 
+            status = status, 
+            headers = res_headers, 
+            body_reader = body_reader,
+            read_body = _read_body,
+        }
     end
-end
-
-
-function _M.read_body(self, reader)
-    if not reader then 
-        -- Most likely HEAD or 304 etc.
-        return nil, "no body to be read"
-    end
-
-    local chunks = {}
-    local c = 1
-
-    local chunk
-    repeat
-        ngx_log(ngx_DEBUG, "calling reader")
-        chunk, err = reader()
-
-        if err then
-            return nil, err, tbl_concat(chunks) -- Return any data so far.
-        end
-        if chunk then
-            ngx_log(ngx_DEBUG, "got chunk of length: "..#chunk)
-            chunks[c] = chunk
-            c = c + 1
-        end
-    until not chunk
-
-    return tbl_concat(chunks)
 end
 
 
@@ -429,7 +435,7 @@ function _M.request_uri(self, uri, params)
         return nil, err
     end
 
-    local body, err = self:read_body(res.reader)
+    local body, err = res:read_body()
     if not body then
         return nil, err
     end

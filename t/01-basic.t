@@ -34,7 +34,7 @@ __DATA__
             }
 
             ngx.status = res.status
-            ngx.print(httpc:read_body(res.reader))
+            ngx.print(res:read_body())
             
             httpc:close()
         ';
@@ -66,7 +66,7 @@ OK
             }
 
             ngx.status = res.status
-            ngx.print(httpc:read_body(res.reader))
+            ngx.print(res:read_body())
             
             httpc:close()
         ';
@@ -97,7 +97,7 @@ OK
             }
 
             ngx.status = res.status
-            ngx.print(httpc:read_body(res.reader))
+            ngx.print(res:read_body())
             
             httpc:close()
         ';
@@ -175,7 +175,7 @@ x-value
                 ngx.header[k] = v
             end
 
-            ngx.print(httpc:read_body(res.reader))
+            ngx.print(res:read_body())
             
             httpc:close()
         ';
@@ -211,7 +211,7 @@ X-Header-B: 2
                 path = "/b"
             }
 
-            local body = httpc:read_body(res.reader)
+            local body = res:read_body()
 
             if body then
                 ngx.print(body)

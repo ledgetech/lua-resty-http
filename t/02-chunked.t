@@ -32,7 +32,7 @@ __DATA__
                 path = "/b"
             }
 
-            local body = httpc:read_body(res.reader)
+            local body = res:read_body()
 
             ngx.say(#body)
             httpc:close()
@@ -71,7 +71,7 @@ GET /a
                 path = "/b"
             }
 
-            local body = httpc:read_body(res.reader)
+            local body = res:read_body()
 
             ngx.say(#body)
             httpc:close()

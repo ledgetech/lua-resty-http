@@ -35,7 +35,7 @@ __DATA__
                 }
             }
 
-            local body = httpc:read_body(res.reader)
+            local body = res:read_body()
             local hash = ngx.md5(body)
             httpc:read_trailers(res.headers)
 
