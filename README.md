@@ -71,10 +71,12 @@ server {
           --
       end
       
-      -- At this point, the body has not been read. You can read it in one go if you like...
+      -- At this point, the body has not been read. You can read it in one go 
+      -- if you like...
       local body = res:read_body()
       
-      -- or, stream the body using an iterator, for predictable memory usage in Lua land.
+      -- or, stream the body using an iterator, for predictable memory usage 
+      -- in Lua land.
       local reader = res.body_reader
       
       repeat
