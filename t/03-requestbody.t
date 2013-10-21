@@ -70,6 +70,7 @@ c: 3
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
             local res, err = httpc:request{
+                method = "POST",
                 body = "a=1&b=2&c=3",
                 path = "/b",
                 headers = {
@@ -86,6 +87,7 @@ c: 3
         content_by_lua '
             ngx.req.read_body()
             local args = ngx.req.get_post_args()
+            ngx.say(ngx.req.get_method())
             ngx.say("a: ", args.a)
             ngx.say("b: ", args.b)
             ngx.print("c: ", args.c)
@@ -94,6 +96,7 @@ c: 3
 --- request
 GET /a
 --- response_body
+POST
 a: 1
 b: 2
 c: 3
