@@ -257,7 +257,7 @@ Originally started life based on https://github.com/bakins/lua-resty-http-simple
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2012, James Hurst <james@pintsized.co.uk>
+Copyright (c) 2013, James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
