@@ -60,3 +60,45 @@ c: 3
 [warn]
 
 
+=== TEST 2: POST form-urlencoded 1.0
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+            
+            local res, err = httpc:request{
+                body = "a=1&b=2&c=3",
+                path = "/b",
+                headers = {
+                    ["Content-Type"] = "application/x-www-form-urlencoded",
+                },
+                version = 1.0,
+            }
+
+            ngx.say(res:read_body())
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            local args = ngx.req.get_post_args()
+            ngx.say("a: ", args.a)
+            ngx.say("b: ", args.b)
+            ngx.print("c: ", args.c)
+        ';
+    }
+--- request
+GET /a
+--- response_body
+a: 1
+b: 2
+c: 3
+--- no_error_log
+[error]
+[warn]
+
+
