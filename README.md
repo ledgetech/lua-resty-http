@@ -27,8 +27,9 @@ server {
         }
       })
       
-      -- In this simple form, there is no manual connection step, so the body is read all in one
-      -- go, including any trailers, and the connection closed or keptalive for you.
+      -- In this simple form, there is no manual connection step, so the body is read 
+      -- all in one go, including any trailers, and the connection closed or keptalive 
+      -- for you.
       
       ngx.status = res.status
       
