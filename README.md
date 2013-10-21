@@ -1,7 +1,7 @@
 # lua-resty-http
 
 
-Lua HTTP client driver for the ngx_lua based on the cosocket API. Supports HTTP 1.0 and 1.1, including chunked transfer encoding for response bodies, and provides a streaming interface to the body irrespective of transfer encoding.
+Lua HTTP client driver for [ngx_lua](https://github.com/chaoslawful/lua-nginx-module) based on the cosocket API. Supports HTTP 1.0 and 1.1, including chunked transfer encoding for response bodies, and provides a streaming interface to the body irrespective of transfer encoding.
 
 ## Status
 
@@ -248,7 +248,7 @@ This is a convenience function allowing one to more easily use the generic inter
 
 James Hurst <james@pintsized.co.uk>
 
-Originally started life based on https://github.com/bakins/lua-resty-http-simple.
+Originally started life based on https://github.com/bakins/lua-resty-http-simple. Cosocket docs and implementation borrowed from the other lua-resty-* cosocket modules.
 
 
 ## Licence
