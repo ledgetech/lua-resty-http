@@ -113,16 +113,11 @@ function _M.parse_uri(self, uri)
         end
 
         return nil, "bad uri"
+    else
+        if not m[3] then m[3] = 80 end
+        if not m[4] then m[4] = "/" end
+        return m, nil
     end
-
-    local t_uri = {
-        m[1],
-        m[2],
-        m[3] or 80,
-        m[4] or "/",
-    }
-
-    return t_uri, nil
 end
 
 
