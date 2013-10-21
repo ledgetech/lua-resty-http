@@ -5,7 +5,7 @@ Lua HTTP client driver for [ngx_lua](https://github.com/chaoslawful/lua-nginx-mo
 
 ## Status
 
-This is new, so the API may shift, but I hope to support this as the "standard" HTTP cosocket implementation, so please send any design feedback or actual bugs on the issues page.
+This is new, so the API may shift, but I hope to offer this as a "standard" HTTP cosocket implementation, so please send any design feedback or actual bugs on the issues page.
 
 
 ## Synopsis
