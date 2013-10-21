@@ -3,12 +3,13 @@
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4) + 2;
+plan tests => repeat_each() * (blocks() * 4) + 5;
 
 my $pwd = cwd();
 
 our $HttpConfig = qq{
     lua_package_path "$pwd/lib/?.lua;;";
+    error_log logs/error.log debug;
 };
 
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
@@ -28,12 +29,12 @@ __DATA__
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
 
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b"
             }
 
-            ngx.status = status
-            ngx.print(body)
+            ngx.status = res.status
+            ngx.print(httpc:read_body(res.reader))
             
             httpc:close()
         ';
@@ -59,13 +60,13 @@ OK
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
 
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 version = 1.0,
                 path = "/b"
             }
 
-            ngx.status = status
-            ngx.print(body)
+            ngx.status = res.status
+            ngx.print(httpc:read_body(res.reader))
             
             httpc:close()
         ';
@@ -91,12 +92,12 @@ OK
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b"
             }
 
-            ngx.status = status
-            ngx.print(body)
+            ngx.status = res.status
+            ngx.print(httpc:read_body(res.reader))
             
             httpc:close()
         ';
@@ -126,12 +127,12 @@ OK
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b"
             }
 
-            ngx.status = status
-            ngx.say(headers["X-Test"])
+            ngx.status = res.status
+            ngx.say(res.headers["X-Test"])
             
             httpc:close()
         ';
@@ -160,7 +161,7 @@ x-value
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 query = {
                     a = 1,
                     b = 2,
@@ -168,13 +169,13 @@ x-value
                 path = "/b"
             }
 
-            ngx.status = status
+            ngx.status = res.status
 
-            for k,v in pairs(headers) do
+            for k,v in pairs(res.headers) do
                 ngx.header[k] = v
             end
 
-            ngx.print(body)
+            ngx.print(httpc:read_body(res.reader))
             
             httpc:close()
         ';
@@ -205,10 +206,12 @@ X-Header-B: 2
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 method = "HEAD",
                 path = "/b"
             }
+
+            local body = httpc:read_body(res.reader)
 
             if body then
                 ngx.print(body)
@@ -234,22 +237,23 @@ GET /a
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            local status, headers, body = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2")
+            local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2")
             
-            ngx.status = status
+            ngx.status = res.status
 
-            for k,v in pairs(headers) do
-                ngx.header[k] = v
-            end
+            ngx.header["X-Header-A"] = res.headers["X-Header-A"]
+            ngx.header["X-Header-B"] = res.headers["X-Header-B"]
 
-            ngx.print(body)
+            ngx.print(res.body)
         ';
     }
     location = /b {
+        chunked_transfer_encoding on;
         content_by_lua '
             for k,v in pairs(ngx.req.get_uri_args()) do
                 ngx.header["X-Header-" .. string.upper(k)] = v
             end
+            ngx.say("OK")
         ';
     }
 --- request
@@ -257,6 +261,48 @@ GET /a
 --- response_headers
 X-Header-A: 1
 X-Header-B: 2
+--- response_body
+OK
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 9: Simple URI interface HTTP 1.0
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri(
+                "http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2", {
+                }
+            )
+            
+            ngx.status = res.status
+            
+            ngx.header["X-Header-A"] = res.headers["X-Header-A"]
+            ngx.header["X-Header-B"] = res.headers["X-Header-B"]
+
+            ngx.print(res.body)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            for k,v in pairs(ngx.req.get_uri_args()) do
+                ngx.header["X-Header-" .. string.upper(k)] = v
+            end
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_headers
+X-Header-A: 1
+X-Header-B: 2
+--- response_body
+OK
 --- no_error_log
 [error]
 [warn]

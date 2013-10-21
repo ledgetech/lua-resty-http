@@ -155,7 +155,7 @@ local function _receive_status(sock)
         return nil, err
     end
 
-    return tonumber(str_sub(line, 10, 12))
+    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8))
 end
 
 
@@ -179,7 +179,7 @@ local function _receive_headers(self)
 end
 
 
-local function _stream_chunked(sock)
+local function _chunked_body_reader(sock)
     return co_wrap(function(max_chunk_size)
         local remaining = 0
 
@@ -211,8 +211,6 @@ local function _stream_chunked(sock)
                     co_yield(nil, "unable to read chunksize")
                 end
 
-                ngx_log(ngx_DEBUG, "new chunk: " .. length)
-
                 if max_chunk_size and length > max_chunk_size then
                     -- Consume up to max_chunk_size
                     remaining = length - max_chunk_size
@@ -221,7 +219,6 @@ local function _stream_chunked(sock)
             end
 
             if length > 0 then
-                ngx_log(ngx_DEBUG, "receiving: " .. length)
                 local str, err = sock:receive(length)
                 if not str then
                     co_yield(nil, err)
@@ -239,12 +236,30 @@ local function _stream_chunked(sock)
 end
 
 
-local function _stream_length(sock, content_length)
+local function _body_reader(sock, content_length)
     return co_wrap(function(max_chunk_size)
-        local received = 0
-        if not max_chunk_size then
-            co_yield(nil, "no chunk size specified")
+        if not content_length and not max_chunk_size then
+            -- HTTP 1.0 with no length will close connection. Read to the end.
+            local str, err = sock:receive("*a")
+            if not str then
+                co_yield(nil, err)
+            end
+
+            co_yield(str)
+
+        elseif not max_chunk_size then
+            -- We have a length and potentially keep-alive, but want the whole thing.
+            local str, err = sock:receive(content_length)
+            if not str then
+                co_yield(nil, err)
+            end
+
+            co_yield(str)
+
         else
+            -- We have a length and potentially a keep-alive, and wish to stream
+            -- the response.
+            local received = 0
             repeat
                 local length = max_chunk_size
                 if received + length > content_length then
@@ -252,7 +267,6 @@ local function _stream_length(sock, content_length)
                 end
 
                 if length > 0 then
-                    ngx_log(ngx_DEBUG, "receiving: " .. length)
                     local str, err = sock:receive(length)
                     if not str then
                         co_yield(nil, err)
@@ -265,26 +279,6 @@ local function _stream_length(sock, content_length)
             until length == 0
         end
     end)
-end
-
-
-local function _receive_chunked(sock)
-    local chunks = {}
-    local c = 1
-
-    local reader = _stream_chunked(sock)
-
-    local chunk
-    repeat
-        chunk, err = reader()
-        if err then
-            return nil, err
-        end
-        chunks[c] = chunk
-        c = c + 1
-    until not chunk
-
-    return tbl_concat(chunks), nil
 end
 
 
@@ -353,59 +347,68 @@ function _M.request(self, params)
     end
 
     -- Receive the status and headers
-    local status = _receive_status(sock)
+    local status, version = _receive_status(sock)
     local res_headers = _receive_headers(self)
-    
+
     local keepalive = true
-    
-    -- Receive the body
-    local body, err = nil, nil
+    local body_reader, err = nil, nil
+
+    -- Receive the body_reader
     if _should_receive_body(params.method, status) then
         local length = tonumber(res_headers["Content-Length"])
+        local encoding = res_headers["Transfer-Encoding"] or ""
 
-        if length then
-            if params.stream_response == true then
-                -- Return an iterator instead of reading the body.
-                body, err = _stream_length(sock, length)
-            else
-                -- Just read the whole thing.
-                body, err = sock:receive("*a")
-            end
+        if version == 1.1 and str_lower(encoding) == "chunked" then
+            body_reader, err = _chunked_body_reader(sock)
         else
-            local encoding = res_headers["Transfer-Encoding"]
-
-            if encoding and str_lower(encoding) == "chunked" then
-                if params.stream_response == true then
-                    -- We'll return the iterator directly.
-                    body, err = _stream_chunked(sock)
-                else
-                    -- Receive and concatenate.
-                    body, err = _receive_chunked(sock)
-                end
-            else
-
-                body, err = sock:receive("*a")
-                keepalive = false
-            end
-        end
-    end
-
-    if not body then 
-        keepalive = false
-    end
-    self.keepalive = keepalive
-
-    if res_headers["Trailer"] then
-        local trailers = _receive_headers(self)
-        for k,v in pairs(trailers) do
-            res_headers[k] = v
+            body_reader, err = _body_reader(sock, length)
         end
     end
 
     if err then
         return nil, err
     else
-        return status, res_headers, body
+        return { status = status, headers = res_headers, reader = body_reader }
+    end
+end
+
+
+function _M.read_body(self, reader)
+    if not reader then 
+        -- Most likely HEAD or 304 etc.
+        return nil, "no body to be read"
+    end
+
+    local chunks = {}
+    local c = 1
+
+    local chunk
+    repeat
+        ngx_log(ngx_DEBUG, "calling reader")
+        chunk, err = reader()
+
+        if err then
+            return nil, err, tbl_concat(chunks) -- Return any data so far.
+        end
+        if chunk then
+            ngx_log(ngx_DEBUG, "got chunk of length: "..#chunk)
+            chunks[c] = chunk
+            c = c + 1
+        end
+    until not chunk
+
+    return tbl_concat(chunks)
+end
+
+
+function _M.read_trailers(self, headers)
+    if headers and headers["Trailer"] then
+        local trailers = _receive_headers(self)
+        if trailers then
+            for k,v in pairs(trailers) do
+                headers[k] = v
+            end
+        end
     end
 end
 
@@ -426,12 +429,22 @@ function _M.request_uri(self, uri, params)
         return nil, err
     end
 
-    local status, headers, body = self:request(params)
+    local res, err = self:request(params)
+    if not res then
+        return nil, err
+    end
+
+    local body, err = self:read_body(res.reader)
+    if not body then
+        return nil, err
+    end
+    
+    res.body = body
 
     -- TODO: keepalive / close logic
-    self:set_keepalive()
+    self:close()
 
-    return status, headers, body
+    return res, nil
 end
 
 

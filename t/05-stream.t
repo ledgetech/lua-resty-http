@@ -28,14 +28,13 @@ __DATA__
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body_reader = httpc:request{
+            local res, err = httpc:request{
                 path = "/b",
-                stream_response = true,
             }
 
             local chunks = {}
             repeat
-                local chunk = body_reader()
+                local chunk = res.reader()
                 if chunk then
                     table.insert(chunks, chunk)
                 end

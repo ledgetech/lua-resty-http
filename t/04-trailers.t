@@ -28,16 +28,18 @@ __DATA__
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b",
                 headers = {
                     ["TE"] = "trailers",
                 }
             }
 
+            local body = httpc:read_body(res.reader)
             local hash = ngx.md5(body)
+            httpc:read_trailers(res.headers)
 
-            if headers["Content-MD5"] == hash then
+            if res.headers["Content-MD5"] == hash then
                 ngx.say("OK")
             end
             httpc:close()

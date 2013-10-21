@@ -28,9 +28,11 @@ __DATA__
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b"
             }
+
+            local body = httpc:read_body(res.reader)
 
             ngx.say(#body)
             httpc:close()
@@ -65,9 +67,11 @@ GET /a
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 path = "/b"
             }
+
+            local body = httpc:read_body(res.reader)
 
             ngx.say(#body)
             httpc:close()

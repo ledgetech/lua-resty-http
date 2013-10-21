@@ -28,7 +28,7 @@ __DATA__
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             
-            local status, headers, body = httpc:request{
+            local res, err = httpc:request{
                 body = "a=1&b=2&c=3",
                 path = "/b",
                 headers = {
@@ -36,7 +36,7 @@ __DATA__
                 }
             }
 
-            ngx.say(body)
+            ngx.say(httpc:read_body(res.reader))
             httpc:close()
         ';
     }
