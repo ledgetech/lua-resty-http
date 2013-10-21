@@ -41,8 +41,9 @@ __DATA__
 
             if res.headers["Content-MD5"] == hash then
                 ngx.say("OK")
+            else
+                ngx.say(res.headers["Content-MD5"])
             end
-            httpc:close()
         ';
     }
     location = /b {
@@ -68,10 +69,10 @@ __DATA__
             table.insert(res, string.format("%x", #body))
             table.insert(res, body)
             table.insert(res, "0")
+            table.insert(res, "")
         
             table.insert(res, "Content-MD5: " .. ngx.md5(body))
 
-            table.insert(res, "")
             table.insert(res, "")
             sock:send(table.concat(res, "\\r\\n"))
         ';

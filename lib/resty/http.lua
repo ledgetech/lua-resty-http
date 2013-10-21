@@ -9,6 +9,7 @@ local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
+local ngx_ERR = ngx.ERR
 local co_wrap = coroutine.wrap
 local co_yield = coroutine.yield
 
@@ -185,7 +186,9 @@ local function _receive_headers(sock)
     local headers = {}
 
     repeat
-        local line = sock:receive()
+        local line, err = sock:receive("*l")
+
+        if not line then break end
 
         for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
             if headers[key] then
@@ -205,6 +208,7 @@ local function _chunked_body_reader(sock)
         local remaining = 0
 
         repeat
+            ngx_log(ngx_DEBUG, "resuming chunked_body_reader")
             local length = 0
 
             if max_chunk_size and remaining > 0 then -- If we still have data on this chunk
@@ -231,6 +235,8 @@ local function _chunked_body_reader(sock)
                 if not length then
                     co_yield(nil, "unable to read chunksize")
                 end
+            
+                ngx_log(ngx_DEBUG, "new chunk of size: " .. length)
 
                 if max_chunk_size and length > max_chunk_size then
                     -- Consume up to max_chunk_size
@@ -240,6 +246,7 @@ local function _chunked_body_reader(sock)
             end
 
             if length > 0 then
+                ngx_log(ngx_DEBUG, "receiving " .. length)
                 local str, err = sock:receive(length)
                 if not str then
                     co_yield(nil, err)
@@ -250,6 +257,9 @@ local function _chunked_body_reader(sock)
                 if remaining == 0 then
                     sock:receive(2) -- read \r\n
                 end
+            else
+                -- Read the last (zero length) chunk's carriage return
+                sock:receive(2) -- read \r\n
             end
 
         until length == 0
@@ -376,7 +386,11 @@ function _M.request(self, params)
     -- Format and send request
     local req = _format_request(params)
     ngx_log(ngx_DEBUG, "\n"..req)
-    sock:send(req)
+    local bytes, err = sock:send(req)
+
+    if not bytes then
+        return nil, err
+    end
 
     -- Send the request body
     if body then
@@ -452,8 +466,13 @@ function _M.request_uri(self, uri, params)
     
     res.body = body
 
-    -- TODO: keepalive / close logic
-    self:close()
+    local connection = str_lower(res.headers["Connection"])
+    if connection == "keep-alive" or connection ~= "close" then 
+        local ok, err = self:set_keepalive()
+        if not ok then
+            ngx_log(ngx_ERR, err)
+        end
+    end
 
     return res, nil
 end
