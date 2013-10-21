@@ -433,7 +433,7 @@ function _M.request_uri(self, uri, params)
     end
 
     local scheme, host, port, path = unpack(parsed_uri)
-    if path then params.path = path end
+    if not params.path then params.path = path end
 
     local c, err = self:connect(host, port)
     if not c then
