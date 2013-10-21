@@ -316,14 +316,12 @@ local function _read_body(res)
 
     local chunk
     repeat
-        ngx_log(ngx_DEBUG, "calling reader")
         chunk, err = reader()
 
         if err then
             return nil, err, tbl_concat(chunks) -- Return any data so far.
         end
         if chunk then
-            ngx_log(ngx_DEBUG, "got chunk of length: "..#chunk)
             chunks[c] = chunk
             c = c + 1
         end
