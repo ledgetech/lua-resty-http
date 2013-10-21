@@ -103,6 +103,28 @@ local function _should_receive_body(method, code)
 end
 
 
+function _M.parse_uri(self, uri)
+    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], "jo")
+
+    if not m then
+        if err then
+            return nil, "failed to match the uri: " .. err
+        end
+
+        return nil, "bad uri"
+    end
+
+    local t_uri = {
+        m[1],
+        m[2],
+        m[3] or 80,
+        m[4] or "/",
+    }
+
+    return t_uri, nil
+end
+
+
 local function _format_request(params)
     local version = params.version
     local headers = params.headers or {}
@@ -159,8 +181,7 @@ local function _receive_status(sock)
 end
 
 
-local function _receive_headers(self)
-    local sock = self.sock
+local function _receive_headers(sock)
     local headers = {}
 
     repeat
@@ -282,27 +303,6 @@ local function _body_reader(sock, content_length)
 end
 
 
-function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], "jo")
-
-    if not m then
-        if err then
-            return nil, "failed to match the uri: " .. err
-        end
-
-        return nil, "bad uri"
-    end
-
-    local t_uri = {
-        m[1],
-        m[2],
-        m[3] or 80,
-        m[4] or "/",
-    }
-
-    return t_uri, nil
-end
-
 local function _read_body(res)
     local reader = res.body_reader
 
@@ -330,6 +330,24 @@ local function _read_body(res)
     until not chunk
 
     return tbl_concat(chunks)
+end
+
+
+local function _trailer_reader(sock)
+    return co_wrap(function()
+        co_yield(_receive_headers(sock))
+    end)
+end
+
+
+local function _read_trailers(res)
+    local reader = res.trailer_reader
+    if not reader then
+        return nil, "no trailers"
+    end
+
+    local trailers = reader()
+    setmetatable(res.headers, { __index = trailers })
 end
 
 
@@ -372,10 +390,10 @@ function _M.request(self, params)
 
     -- Receive the status and headers
     local status, version = _receive_status(sock)
-    local res_headers = _receive_headers(self)
+    local res_headers = _receive_headers(sock)
 
     local keepalive = true
-    local body_reader, err = nil, nil
+    local body_reader, trailer_reader, err = nil, nil, nil
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
@@ -389,6 +407,10 @@ function _M.request(self, params)
         end
     end
 
+    if res_headers["Trailer"] then
+        trailer_reader, err = _trailer_reader(sock)
+    end
+
     if err then
         return nil, err
     else
@@ -397,19 +419,9 @@ function _M.request(self, params)
             headers = res_headers, 
             body_reader = body_reader,
             read_body = _read_body,
+            trailer_reader = trailer_reader,
+            read_trailers = _read_trailers,
         }
-    end
-end
-
-
-function _M.read_trailers(self, headers)
-    if headers and headers["Trailer"] then
-        local trailers = _receive_headers(self)
-        if trailers then
-            for k,v in pairs(trailers) do
-                headers[k] = v
-            end
-        end
     end
 end
 
