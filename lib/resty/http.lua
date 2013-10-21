@@ -305,15 +305,10 @@ end
 
 
 function _M.request(self, params)
-    local sock = self.sock
-
     -- Apply defaults
-    for k,v in pairs(DEFAULT_PARAMS) do
-        if not params[k] then
-            params[k] = v
-        end
-    end
+    setmetatable(params, { __index = DEFAULT_PARAMS })
     
+    local sock = self.sock
     local body = params.body
     local headers = params.headers or {}
     
