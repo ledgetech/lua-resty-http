@@ -85,7 +85,7 @@ OK
 [warn]
 
 
-=== TEST 2: Advertised trailer does not exist.
+=== TEST 2: Advertised trailer does not exist, handled gracefully.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -132,7 +132,7 @@ OK
             table.insert(res, string.format("%x", #body))
             table.insert(res, body)
             table.insert(res, "0")
-        
+            
             table.insert(res, "")
             table.insert(res, "")
             sock:send(table.concat(res, "\\r\\n"))
