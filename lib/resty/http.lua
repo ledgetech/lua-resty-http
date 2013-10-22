@@ -40,7 +40,7 @@ function _M.new(self)
     if not sock then
         return nil, err
     end
-    return setmetatable({ sock = sock, host = nil }, mt)
+    return setmetatable({ sock = sock }, mt)
 end
 
 
@@ -203,9 +203,6 @@ local function _chunked_body_reader(sock)
         local remaining = 0
 
         repeat
-            ngx_log(ngx_DEBUG, "resuming chunked_body_reader")
-            local length = 0
-
             if max_chunk_size and remaining > 0 then -- If we still have data on this chunk
 
                 if remaining > max_chunk_size then
@@ -231,8 +228,6 @@ local function _chunked_body_reader(sock)
                     co_yield(nil, "unable to read chunksize")
                 end
             
-                ngx_log(ngx_DEBUG, "new chunk of size: " .. length)
-
                 if max_chunk_size and length > max_chunk_size then
                     -- Consume up to max_chunk_size
                     remaining = length - max_chunk_size
@@ -241,7 +236,6 @@ local function _chunked_body_reader(sock)
             end
 
             if length > 0 then
-                ngx_log(ngx_DEBUG, "receiving " .. length)
                 local str, err = sock:receive(length)
                 if not str then
                     co_yield(nil, err)
@@ -264,7 +258,7 @@ end
 
 local function _body_reader(sock, content_length)
     return co_wrap(function(max_chunk_size)
-        if not content_length and not max_chunk_size then
+        if not content_length then
             -- HTTP 1.0 with no length will close connection. Read to the end.
             local str, err = sock:receive("*a")
             if not str then
@@ -321,7 +315,7 @@ local function _read_body(res)
 
     local chunk
     repeat
-        chunk, err = reader()
+        chunk, err = reader(8192)
 
         if err then
             return nil, err, tbl_concat(chunks) -- Return any data so far.
@@ -380,7 +374,7 @@ function _M.request(self, params)
 
     -- Format and send request
     local req = _format_request(params)
-    ngx_log(ngx_DEBUG, "\n"..req)
+    ngx_log(ngx_DEBUG, "\n", req)
     local bytes, err = sock:send(req)
 
     if not bytes then
