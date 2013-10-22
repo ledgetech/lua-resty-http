@@ -315,7 +315,7 @@ local function _read_body(res)
 
     local chunk
     repeat
-        chunk, err = reader(8192)
+        chunk, err = reader()
 
         if err then
             return nil, err, tbl_concat(chunks) -- Return any data so far.
