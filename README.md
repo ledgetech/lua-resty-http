@@ -5,7 +5,7 @@ Lua HTTP client driver for [ngx_lua](https://github.com/chaoslawful/lua-nginx-mo
 
 ## Status
 
-This is new, so the API may shift, but I hope to support this as the "standard" HTTP cosocket implementation, so please send any design feedback or actual bugs on the issues page.
+This is new, so the API may shift, but I hope to offer this as a "standard" HTTP cosocket implementation, so please send any design feedback or actual bugs on the issues page.
 
 
 ## Synopsis
@@ -257,7 +257,7 @@ Originally started life based on https://github.com/bakins/lua-resty-http-simple
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2012, James Hurst <james@pintsized.co.uk>
+Copyright (c) 2013, James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
