@@ -274,7 +274,7 @@ local function _body_reader(sock, content_length)
                 co_yield(nil, err)
             end
 
-            co_yield(str)
+            co_yield(str) 
 
         else
             -- We have a length and potentially a keep-alive, and wish to stream
@@ -313,7 +313,7 @@ local function _read_body(res)
     local chunks = {}
     local c = 1
 
-    local chunk
+    local chunk, err
     repeat
         chunk, err = reader()
 
@@ -357,7 +357,7 @@ function _M.request(self, params)
     local headers = params.headers or {}
     
     -- Ensure minimal headers are set
-    if body then
+    if body and not headers["Content-Length"] then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
