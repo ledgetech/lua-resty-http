@@ -201,6 +201,7 @@ end
 local function _chunked_body_reader(sock)
     return co_wrap(function(max_chunk_size)
         local remaining = 0
+        local length
 
         repeat
             if max_chunk_size and remaining > 0 then -- If we still have data on this chunk
