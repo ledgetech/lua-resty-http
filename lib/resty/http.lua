@@ -105,7 +105,8 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], "jo")
+    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], 
+        "jo")
 
     if not m then
         if err then
@@ -145,7 +146,7 @@ local function _format_request(params)
         true,
         true,
     }
-    local c = 6 -- req table index - it's faster to do this inline vs table.insert
+    local c = 6 -- req table index it's faster to do this inline vs table.insert
 
     -- Append headers
     for key, values in pairs(headers) do
@@ -203,8 +204,9 @@ local function _chunked_body_reader(sock)
         local remaining = 0
         local length
 
-        repeat
-            if max_chunk_size and remaining > 0 then -- If we still have data on this chunk
+        repeat 
+            -- If we still have data on this chunk
+            if max_chunk_size and remaining > 0 then
 
                 if remaining > max_chunk_size then
                     -- Consume up to max_chunk_size
@@ -269,7 +271,8 @@ local function _body_reader(sock, content_length)
             co_yield(str)
 
         elseif not max_chunk_size then
-            -- We have a length and potentially keep-alive, but want the whole thing.
+            -- We have a length and potentially keep-alive, but want the whole 
+            -- thing.
             local str, err = sock:receive(content_length)
             if not str then
                 co_yield(nil, err)
