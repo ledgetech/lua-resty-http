@@ -402,7 +402,7 @@ function _M.request(self, params)
     local res_headers = _receive_headers(sock)
 
     -- Determine if we should keepalive or not.
-    local connection = str_lower(res_headers["Connection"]) or ""
+    local connection = str_lower(res_headers["Connection"] or "")
     if  (version == 1.1 and connection == "close") or
         (version == 1.0 and connection ~= "keep-alive") then
             self.keepalive = false
