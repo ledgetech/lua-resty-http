@@ -94,7 +94,17 @@ server {
       -- If the response advertised trailers, you can merge them with the headers now
       res:read_trailers()
       
-      httpc:set_keepalive()
+      -- Set keepalive on the socket if the response allows it
+      local ok, err
+      local connection = str_lower(res.headers["Connection"]) or ""
+      if connection == "keep-alive" then
+          ok, err = httpc:set_keepalive()
+      else
+          ok, err = httpc:close()
+      end
+      if not ok then
+          ngx.log(ngx.ERR, err)
+      end     
     ';
   }
 }
