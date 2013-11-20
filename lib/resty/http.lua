@@ -40,7 +40,7 @@ function _M.new(self)
     if not sock then
         return nil, err
     end
-    return setmetatable({ sock = sock }, mt)
+    return setmetatable({ sock = sock, keepalive = true }, mt)
 end
 
 
@@ -72,7 +72,11 @@ function _M.set_keepalive(self, ...)
         return nil, "not initialized"
     end
 
-    return sock:setkeepalive(...)
+    if self.keepalive == true then
+        return sock:setkeepalive(...)
+    else
+        return sock:close()
+    end
 end
 
 
@@ -397,7 +401,13 @@ function _M.request(self, params)
     local status, version = _receive_status(sock)
     local res_headers = _receive_headers(sock)
 
-    local keepalive = true
+    -- Determine if we should keepalive or not.
+    local connection = str_lower(res_headers["Connection"]) or ""
+    if  (version == 1.1 and connection == "close") or
+        (version == 1.0 and connection ~= "keep-alive") then
+            self.keepalive = false
+    end
+
     local body_reader, trailer_reader, err = nil, nil, nil
 
     -- Receive the body_reader
