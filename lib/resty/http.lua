@@ -175,7 +175,7 @@ end
 local function _receive_status(sock)
     local line, err = sock:receive("*l")
     if not line then
-        return nil, err
+        return nil, nil, err
     end
 
     return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8))
@@ -187,8 +187,9 @@ local function _receive_headers(sock)
 
     repeat
         local line, err = sock:receive("*l")
-
-        if not line then break end
+        if not line then 
+            return nil, err
+        end
 
         for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
             if headers[key] then
@@ -398,8 +399,15 @@ function _M.request(self, params)
     end
 
     -- Receive the status and headers
-    local status, version = _receive_status(sock)
-    local res_headers = _receive_headers(sock)
+    local status, version, err = _receive_status(sock)
+    if not status then 
+        return nil, err
+    end
+
+    local res_headers, err = _receive_headers(sock)
+    if not res_headers then 
+        return nil, err
+    end
 
     -- Determine if we should keepalive or not.
     local connection = str_lower(res_headers["Connection"] or "")

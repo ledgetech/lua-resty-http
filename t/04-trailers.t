@@ -74,6 +74,7 @@ __DATA__
             table.insert(res, "Content-MD5: " .. ngx.md5(body))
 
             table.insert(res, "")
+            table.insert(res, "")
             sock:send(table.concat(res, "\\r\\n"))
         ';
     }
