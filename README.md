@@ -7,7 +7,6 @@ Lua HTTP client driver for [ngx_lua](https://github.com/chaoslawful/lua-nginx-mo
 
 This is newish, but works and passes tests. Please send any design feedback or actual bugs on the issues page.
 
-
 ## Synopsis
 
 ```` lua
@@ -142,6 +141,8 @@ You can specify the max idle timeout (in ms) when the connection is in the pool 
 In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
 
 Only call this method in the place you would have called the `close` method instead. Calling this method will immediately turn the current http object into the `closed` state. Any subsequent operations other than `connect()` on the current objet will return the `closed` error.
+
+Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
 
 #### get_reused_times
 
