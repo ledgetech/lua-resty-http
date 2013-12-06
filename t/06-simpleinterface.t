@@ -179,7 +179,7 @@ keep-alive
 [warn]
 
 
-=== TEST 4 Connection: close, test we don't try to keepalive.
+=== TEST 5 Connection: close, test we don't try to keepalive.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
