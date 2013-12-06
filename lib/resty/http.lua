@@ -477,12 +477,9 @@ function _M.request_uri(self, uri, params)
     
     res.body = body
 
-    local connection = str_lower(res.headers["Connection"])
-    if connection == "keep-alive" or connection ~= "close" then 
-        local ok, err = self:set_keepalive()
-        if not ok then
-            ngx_log(ngx_ERR, err)
-        end
+    local ok, err = self:set_keepalive()
+    if not ok then
+        ngx_log(ngx_ERR, err)
     end
 
     return res, nil
