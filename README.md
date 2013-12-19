@@ -15,8 +15,8 @@ lua_package_path "/path/to/lua-resty-http/lib/?.lua;;";
 server {
   location /simpleinterface {
     content_by_lua '
+    
       -- For simple work, use the URI interface...
-      
       local httpc = http.new()
       local res, err = httpc:request_uri("http://example.com/helloworld", {
         method = "POST",
@@ -29,7 +29,7 @@ server {
       -- In this simple form, there is no manual connection step, so the body is read 
       -- all in one go, including any trailers, and the connection closed or keptalive 
       -- for you.
-      
+  
       ngx.status = res.status
       
       for k,v in pairs(res.headers) do
@@ -46,12 +46,10 @@ server {
       local httpc = http.new()
       
       -- The generic form gives us more control. We must connect manually...
-      
       httpc:set_timeout(500)
       httpc:connect("127.0.0.1", 80)
       
       -- And request using a path, rather than a full URI...
-      
       local res, err = httpc:request{
           path = "/helloworld",
           headers = {
@@ -70,11 +68,14 @@ server {
           --
       end
       
+      -- METHOD 1.
       -- At this point, the body has not been read. You can read it in one go 
       -- if you like...
       local body = res:read_body()
       
-      -- or, stream the body using an iterator, for predictable memory usage 
+      
+      -- METHOD 2.
+      -- Or, stream the body using an iterator, for predictable memory usage 
       -- in Lua land.
       local reader = res.body_reader
       
@@ -89,6 +90,42 @@ server {
           -- process
         end
       until not chunk
+      
+      
+      -- METHOD 3.
+      -- Or, introduce your own coroutine filter to modify the chunks as they arrive.
+      function get_filter(reader)
+          return coroutine.wrap(function(max_bytes)
+              repeat
+                  local chunk, err = reader(max_bytes)
+                  if not chunk then
+                      coroutine.yield(nil, err)
+                      break
+                  end
+      
+                  -- Process data
+      
+                  coroutine.yield(chunk)
+              until not chunk
+          end)
+      end
+
+      -- pass the body reader to your filter
+      local reader = get_filter(res.body_reader)
+      
+      -- then read via your filter(s) as above
+      repeat
+        local chunk, err = reader(8192)
+        if err then
+          ngx.log(ngx.ERR, err)
+          break
+        end
+        
+        if chunk then
+          ngx.print(chunk)
+        end
+      until not chunk
+        
       
       -- If the response advertised trailers, you can merge them with the headers now
       res:read_trailers()
