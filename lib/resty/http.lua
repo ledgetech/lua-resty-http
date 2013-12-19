@@ -10,8 +10,31 @@ local ngx_re_match = ngx.re.match
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
-local co_wrap = coroutine.wrap
 local co_yield = coroutine.yield
+
+
+-- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
+-- be resumed. This protects user code from inifite loops when doing things like
+-- repeat
+--   local chunk, err = res.body_reader()
+--   if chunk then -- <-- This could be a string msg in the core wrap function.
+--     ...
+--   end
+-- until not chunk
+local co_wrap = function(func) 
+    local co = coroutine.create(func)
+    if not co then
+        return nil, "could not create coroutine"
+    else
+        return function(...)
+            if coroutine.status(co) == "suspended" then
+                return select(2, coroutine.resume(co, ...))
+            else
+                return nil, "can't resume a " .. coroutine.status(co) .. " coroutine"
+            end
+        end
+    end
+end
 
 
 local _M = {
