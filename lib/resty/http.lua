@@ -98,7 +98,15 @@ function _M.set_keepalive(self, ...)
     if self.keepalive == true then
         return sock:setkeepalive(...)
     else
-        return sock:close()
+        -- The server said we must close the connection, so we cannot setkeepalive.
+        -- If close() succeeds we return 2 instead of 1, to differentiate between 
+        -- a normal setkeepalive() failure and an intentional close().
+        local res, err = sock:close()
+        if res then
+            return 2, "connection must be closed"
+        else
+            return res, err
+        end
     end
 end
 

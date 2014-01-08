@@ -171,15 +171,15 @@ Sets the timeout (in ms) protection for subsequent operations, including the `co
 
 `syntax: ok, err = httpc:set_keepalive(max_idle_timeout, pool_size)`
 
-Puts the current connection immediately into the ngx_lua cosocket connection pool.
+Attempts to puts the current connection into the ngx_lua cosocket connection pool.
 
 You can specify the max idle timeout (in ms) when the connection is in the pool and the maximal size of the pool every nginx worker process.
-
-In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
 
 Only call this method in the place you would have called the `close` method instead. Calling this method will immediately turn the current http object into the `closed` state. Any subsequent operations other than `connect()` on the current objet will return the `closed` error.
 
 Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
+
+In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
 
 #### get_reused_times
 
