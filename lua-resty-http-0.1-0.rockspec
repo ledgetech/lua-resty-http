@@ -1,8 +1,8 @@
 package = "lua-resty-http"
 version = "0.1-0"
 source = {
-  url = "",
-  dir = "fakengx"
+  url = "https://github.com/DorianGray/lua-resty-http/archive/v0.1.tar.gz",
+  dir = "lua-resty-http-0.7"
 }
 description = {
   summary = "",
