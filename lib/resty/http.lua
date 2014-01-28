@@ -491,7 +491,7 @@ function _M.request_uri(self, uri, params)
     local scheme, host, port, path = unpack(parsed_uri)
     if not params.path then params.path = path end
 
-    local c, err = self:connect(host, port)
+    local c, err = self:connect(host, port, {ssl = scheme == "https", ssl_verify_name=true})
     if not c then
         return nil, err
     end
