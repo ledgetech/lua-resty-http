@@ -388,6 +388,34 @@ local function _read_trailers(res)
 end
 
 
+local function _send_body(sock, body)
+    if body then
+        local bytes, err = sock:send(body)
+        if not bytes then
+            return nil, err
+        end
+    end
+end
+
+
+local function _handle_continue(sock, body)
+    local status, version, err = _receive_status(sock)
+    if not status then
+        return nil, err
+    end
+
+    -- Only send body if we receive a 100 Continue
+    if status == 100 then
+        local ok, err = sock:receive("*l") -- Read carriage return
+        if not ok then
+            return nil, err
+        end
+        _send_body(sock, body)
+    end
+    return status, version, err
+end
+
+
 function _M.request(self, params)
     -- Apply defaults
     setmetatable(params, { __index = DEFAULT_PARAMS })
@@ -422,17 +450,25 @@ function _M.request(self, params)
     end
 
     -- Send the request body
-    if body then
-        local bytes, err = sock:send(body)
-        if not bytes then
-            return nil, err
+    local status, version, err
+    if headers["Expect"] == '100-continue' then
+        local _status, _version, _err = _handle_continue(sock, body)
+        if not _status then
+            return nil, _err
+        elseif _status ~= 100 then
+            -- Didn't get a 100 Continue, this is the final status
+            status, version, err = _status, _version, _err
         end
+    else
+        _send_body(sock, body)
     end
 
     -- Receive the status and headers
-    local status, version, err = _receive_status(sock)
-    if not status then 
-        return nil, err
+    if not status then
+        status, version, err = _receive_status(sock)
+        if not status then
+            return nil, err
+        end
     end
 
     local res_headers, err = _receive_headers(sock)
