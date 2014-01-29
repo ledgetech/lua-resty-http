@@ -1,4 +1,7 @@
 local ngx_socket_tcp = ngx.socket.tcp
+local ngx_req = ngx.req
+local ngx_req_socket = ngx_req.socket
+local ngx_req_get_headers = ngx_req.get_headers
 local str_gmatch = string.gmatch
 local str_lower = string.lower
 local str_upper = string.upper
@@ -389,7 +392,28 @@ end
 
 
 local function _send_body(sock, body)
-    if body then
+    if body == nil then
+        return
+    elseif type(body) == 'function' then
+        repeat
+            local chunk, err, partial = body()
+
+            ngx_log(ngx_DEBUG, "read ".. #(chunk or partial or "") .. " bytes from request")
+            if chunk ~= nil then
+                local ok,err = sock:send(chunk)
+                if not ok then
+                    return nil, err
+                end
+            elseif partial then
+                local ok, err = sock:send(partial)
+                if not ok then
+                    return nil, err
+                end
+            elseif err then
+                return nil, err
+            end
+        until chunk == nil
+    else
         local bytes, err = sock:send(body)
         if not bytes then
             return nil, err
@@ -425,7 +449,7 @@ function _M.request(self, params)
     local headers = params.headers or {}
     
     -- Ensure minimal headers are set
-    if body and not headers["Content-Length"] then
+    if type(body) == 'string' and not headers["Content-Length"] then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
@@ -550,6 +574,45 @@ function _M.request_uri(self, uri, params)
     end
 
     return res, nil
+end
+
+
+function _M.get_request_reader(self, chunksize)
+    local chunksize = chunksize or 65536
+    local sock, err = ngx_req_socket()
+
+    if not sock then
+        if err == "no body" then
+            return nil
+        else
+            return nil, err
+        end
+    end
+
+    local headers = ngx_req_get_headers()
+    local length = headers["Content-Length"]
+
+    if length then
+        length = tonumber(length)
+        return function()
+                    ngx_log(ngx_DEBUG, length.. " Bytes left to read from request")
+                    local data, err, partial
+                    if length > chunksize then
+                        data, err, partial = sock:receive(chunksize)
+                        if data then
+                            length = length - chunksize
+                        elseif partial then
+                            length = length - #partial
+                        end
+                    elseif length > 0 then
+                        data, err, partial = sock:receive(length)
+                        length = 0
+                    end
+                    return data, err, partial
+               end
+    else
+       return nil, "Unknown transfer encoding"
+    end
 end
 
 
