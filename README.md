@@ -251,7 +251,7 @@ The `params` table accepts the following fields:
 * `method` The HTTP method string.
 * `path` The path string.
 * `headers` A table of request headers.
-* `body` The request body as a string or aniterator function.
+* `body` The request body as a string or an iterator function.
 
 When the request is successful, `res` will contain the following fields:
 
