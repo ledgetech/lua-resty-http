@@ -396,7 +396,7 @@ local function _send_body(sock, body)
         return
     elseif type(body) == 'function' then
         repeat
-            local chunk, err, partial = body(65536)
+            local chunk, err, partial = body()
 
             if chunk ~= nil then
                 local ok,err = sock:send(chunk)
@@ -577,6 +577,7 @@ end
 
 
 function _M.get_request_reader(self, chunksize)
+    local chunksize = chunksize or 65536
     local sock, err = ngx_req_socket()
 
     if not sock then
@@ -591,10 +592,16 @@ function _M.get_request_reader(self, chunksize)
     local length = headers["Content-Length"]
     local encoding = headers["Transfer-Encoding"]
     if length then
-        return _body_reader(sock, tonumber(length))
+        local reader = _body_reader(sock, tonumber(length))
+        return function()
+                   return reader(chunksize)
+               end
     elseif str_lower(encoding) == 'chunked' then
         -- Not yet supported by ngx_lua but should just work...
-        return _chunked_body_reader(sock)
+        local reader = _chunked_body_reader(sock)
+        return function()
+                   return reader(chunksize)
+               end
     else
        return nil, "Unknown transfer encoding"
     end
