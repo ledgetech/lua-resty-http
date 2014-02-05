@@ -238,8 +238,9 @@ local function _receive_headers(sock)
 end
 
 
-local function _chunked_body_reader(sock)
+local function _chunked_body_reader(sock, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         local remaining = 0
         local length
 
@@ -298,8 +299,9 @@ local function _chunked_body_reader(sock)
 end
 
 
-local function _body_reader(sock, content_length)
+local function _body_reader(sock, content_length, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         if not content_length then
             -- HTTP 1.0 with no length will close connection. Read to the end.
             local str, err = sock:receive("*a")
@@ -392,15 +394,9 @@ end
 
 
 local function _send_body(sock, body)
-    if body ~= nil then
-        local bytes, err = sock:send(body)
-        if not bytes then
-            return nil, err
-        end
-    elseif type(body) == 'function' then
+    if type(body) == 'function' then
         repeat
             local chunk, err, partial = body()
-
             if chunk then
                 local ok,err = sock:send(chunk)
                 if not ok then
@@ -410,6 +406,11 @@ local function _send_body(sock, body)
                 return nil, err, partial
             end
         until chunk == nil
+    elseif body ~= nil then
+        local bytes, err = sock:send(body)
+        if not bytes then
+            return nil, err
+        end
     end
     return true, nil
 end
@@ -589,16 +590,10 @@ function _M.get_client_body_reader(self, chunksize)
     local length = headers["Content-Length"]
     local encoding = headers["Transfer-Encoding"]
     if length then
-        local reader = _body_reader(sock, tonumber(length))
-        return function()
-                   return reader(chunksize)
-               end
+        return _body_reader(sock, tonumber(length), chunksize)
     elseif str_lower(encoding) == 'chunked' then
         -- Not yet supported by ngx_lua but should just work...
-        local reader = _chunked_body_reader(sock)
-        return function()
-                   return reader(chunksize)
-               end
+        return _chunked_body_reader(sock, chunksize)
     else
        return nil, "Unknown transfer encoding"
     end
