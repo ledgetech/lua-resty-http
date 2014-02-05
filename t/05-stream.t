@@ -280,7 +280,7 @@ chunked
             local http = require "resty.http"
             local httpc = http.new()
 
-            local reader, err = httpc:get_request_reader(8192)
+            local reader, err = httpc:get_client_body_reader(8192)
 
             repeat
                 local chunk, err = reader()
@@ -309,7 +309,7 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
             local http = require "resty.http"
             local httpc = http.new()
 
-            local reader, err = httpc:get_request_reader(64)
+            local reader, err = httpc:get_client_body_reader(64)
 
             local chunks = 0
             repeat
@@ -343,7 +343,7 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
 
-            local reader, err = httpc:get_request_reader(64)
+            local reader, err = httpc:get_client_body_reader(64)
 
             local res, err = httpc:request{
                 method = POST,

@@ -392,32 +392,26 @@ end
 
 
 local function _send_body(sock, body)
-    if body == nil then
-        return
-    elseif type(body) == 'function' then
-        repeat
-            local chunk, err, partial = body()
-
-            if chunk ~= nil then
-                local ok,err = sock:send(chunk)
-                if not ok then
-                    return nil, err
-                end
-            elseif partial then
-                local ok, err = sock:send(partial)
-                if not ok then
-                    return nil, err
-                end
-            elseif err then
-                return nil, err
-            end
-        until chunk == nil
-    else
+    if body ~= nil then
         local bytes, err = sock:send(body)
         if not bytes then
             return nil, err
         end
+    elseif type(body) == 'function' then
+        repeat
+            local chunk, err, partial = body()
+
+            if chunk then
+                local ok,err = sock:send(chunk)
+                if not ok then
+                    return nil, err
+                end
+            elseif err ~= nil then
+                return nil, err, partial
+            end
+        until chunk == nil
     end
+    return true, nil
 end
 
 
@@ -483,7 +477,10 @@ function _M.request(self, params)
             status, version, err = _status, _version, _err
         end
     else
-        _send_body(sock, body)
+        local ok, err, partial = _send_body(sock, body)
+        if not ok then
+            return nil, err, partial
+        end
     end
 
     -- Receive the status and headers
@@ -576,7 +573,7 @@ function _M.request_uri(self, uri, params)
 end
 
 
-function _M.get_request_reader(self, chunksize)
+function _M.get_client_body_reader(self, chunksize)
     local chunksize = chunksize or 65536
     local sock, err = ngx_req_socket()
 

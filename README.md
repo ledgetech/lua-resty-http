@@ -58,8 +58,8 @@ server {
       }
 
       -- Or stream the request body in
-      local request_reader, err = httpc:get_request_reader()
-      if not request_reader then
+      local client_body_reader, err = httpc:get_client_body_reader()
+      if not client_body_reader then
           if err == "chunked request bodies not supported yet" then
               ngx.status = 411
               ngx.say("411 Length Required")
@@ -69,7 +69,7 @@ server {
 
       local res, err = httpc:request{
           path = "/helloworld",
-          body = request_reader,
+          body = client_body_reader,
           headers = {
               ["Host"] = "example.com",
           },
@@ -215,14 +215,14 @@ Closes the current connection and returns the status.
 
 In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
 
-#### get_request_reader
+#### get_client_body_reader
 
-`syntax: reader, err = httpc:get_request_reader()`
+`syntax: reader, err = httpc:get_client_body_reader()`
 
-Returns an iterator function which can be used to read the request body in a chunked fashion. This iterator can be set used as the body field in request params.
+Returns an iterator function which can be used to read the downstream request body in a chunked fashion. This iterator can be used as the value for the body field in request params.
 
 ```lua
-local req_reader = httpc:get_request_reader()
+local req_reader = httpc:get_client_body_reader()
 
 repeat
   local chunk, err = req_reader(8192)
