@@ -1,4 +1,7 @@
 local ngx_socket_tcp = ngx.socket.tcp
+local ngx_req = ngx.req
+local ngx_req_socket = ngx_req.socket
+local ngx_req_get_headers = ngx_req.get_headers
 local str_gmatch = string.gmatch
 local str_lower = string.lower
 local str_upper = string.upper
@@ -235,8 +238,9 @@ local function _receive_headers(sock)
 end
 
 
-local function _chunked_body_reader(sock)
+local function _chunked_body_reader(sock, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         local remaining = 0
         local length
 
@@ -295,8 +299,9 @@ local function _chunked_body_reader(sock)
 end
 
 
-local function _body_reader(sock, content_length)
+local function _body_reader(sock, content_length, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         if not content_length then
             -- HTTP 1.0 with no length will close connection. Read to the end.
             local str, err = sock:receive("*a")
@@ -389,12 +394,25 @@ end
 
 
 local function _send_body(sock, body)
-    if body then
+    if type(body) == 'function' then
+        repeat
+            local chunk, err, partial = body()
+            if chunk then
+                local ok,err = sock:send(chunk)
+                if not ok then
+                    return nil, err
+                end
+            elseif err ~= nil then
+                return nil, err, partial
+            end
+        until chunk == nil
+    elseif body ~= nil then
         local bytes, err = sock:send(body)
         if not bytes then
             return nil, err
         end
     end
+    return true, nil
 end
 
 
@@ -425,7 +443,7 @@ function _M.request(self, params)
     local headers = params.headers or {}
     
     -- Ensure minimal headers are set
-    if body and not headers["Content-Length"] then
+    if type(body) == 'string' and not headers["Content-Length"] then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
@@ -460,7 +478,10 @@ function _M.request(self, params)
             status, version, err = _status, _version, _err
         end
     else
-        _send_body(sock, body)
+        local ok, err, partial = _send_body(sock, body)
+        if not ok then
+            return nil, err, partial
+        end
     end
 
     -- Receive the status and headers
@@ -550,6 +571,32 @@ function _M.request_uri(self, uri, params)
     end
 
     return res, nil
+end
+
+
+function _M.get_client_body_reader(self, chunksize)
+    local chunksize = chunksize or 65536
+    local sock, err = ngx_req_socket()
+
+    if not sock then
+        if err == "no body" then
+            return nil
+        else
+            return nil, err
+        end
+    end
+
+    local headers = ngx_req_get_headers()
+    local length = headers["Content-Length"]
+    local encoding = headers["Transfer-Encoding"]
+    if length then
+        return _body_reader(sock, tonumber(length), chunksize)
+    elseif str_lower(encoding) == 'chunked' then
+        -- Not yet supported by ngx_lua but should just work...
+        return _chunked_body_reader(sock, chunksize)
+    else
+       return nil, "Unknown transfer encoding"
+    end
 end
 
 
