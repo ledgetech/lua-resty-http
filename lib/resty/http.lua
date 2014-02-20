@@ -342,6 +342,11 @@ local function _body_reader(sock, content_length)
 end
 
 
+local function _no_body_reader()
+    return nil
+end
+
+
 local function _read_body(res)
     local reader = res.body_reader
 
@@ -447,7 +452,8 @@ function _M.request(self, params)
             self.keepalive = false
     end
 
-    local body_reader, trailer_reader, err = nil, nil, nil
+    local body_reader = _no_body_reader
+    local trailer_reader, err = nil, nil
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then

@@ -3,7 +3,7 @@
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4);
+plan tests => repeat_each() * (blocks() * 4) - 1;
 
 my $pwd = cwd();
 
@@ -270,3 +270,37 @@ chunked
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 6: Body reader is a function returning nil when no body is present.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+            
+            local res, err = httpc:request{
+                path = "/b",
+                method = "HEAD",
+            }
+
+            repeat
+                local chunk = res.body_reader()
+            until not chunk
+
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.exit(200)
+        ';
+    }
+--- request
+GET /a
+--- no_error_log
+[error]
+[warn]
+
