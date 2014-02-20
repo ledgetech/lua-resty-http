@@ -56,7 +56,25 @@ server {
               ["Host"] = "example.com",
           },
       }
-      
+
+      -- Or stream the request body in
+      local client_body_reader, err = httpc:get_client_body_reader()
+      if not client_body_reader then
+          if err == "chunked request bodies not supported yet" then
+              ngx.status = 411
+              ngx.say("411 Length Required")
+              ngx.exit(ngx.status)
+          end
+      end
+
+      local res, err = httpc:request{
+          path = "/helloworld",
+          body = client_body_reader,
+          headers = {
+              ["Host"] = "example.com",
+          },
+      }
+
       if not res then
           ngx.log(ngx.ERR, err)
           ngx.exit(500)
@@ -197,6 +215,27 @@ Closes the current connection and returns the status.
 
 In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
 
+#### get_client_body_reader
+
+`syntax: reader, err = httpc:get_client_body_reader()`
+
+Returns an iterator function which can be used to read the downstream request body in a chunked fashion. This iterator can be used as the value for the body field in request params.
+
+```lua
+local req_reader = httpc:get_client_body_reader()
+
+repeat
+  local chunk, err = req_reader(8192)
+  if err then
+    ngx.log(ngx.ERR, err)
+    break
+  end
+
+  if chunk then
+    -- process
+  end
+until not chunk
+```
 
 ### Requesting
 
@@ -212,7 +251,7 @@ The `params` table accepts the following fields:
 * `method` The HTTP method string.
 * `path` The path string.
 * `headers` A table of request headers.
-* `body` The request body as a string.
+* `body` The request body as a string or an iterator function.
 
 When the request is successful, `res` will contain the following fields:
 

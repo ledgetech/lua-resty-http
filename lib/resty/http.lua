@@ -1,4 +1,7 @@
 local ngx_socket_tcp = ngx.socket.tcp
+local ngx_req = ngx.req
+local ngx_req_socket = ngx_req.socket
+local ngx_req_get_headers = ngx_req.get_headers
 local str_gmatch = string.gmatch
 local str_lower = string.lower
 local str_upper = string.upper
@@ -235,8 +238,9 @@ local function _receive_headers(sock)
 end
 
 
-local function _chunked_body_reader(sock)
+local function _chunked_body_reader(sock, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         local remaining = 0
         local length
 
@@ -295,8 +299,9 @@ local function _chunked_body_reader(sock)
 end
 
 
-local function _body_reader(sock, content_length)
+local function _body_reader(sock, content_length, default_chunksize)
     return co_wrap(function(max_chunk_size)
+        local max_chunk_size = max_chunk_size or default_chunksize
         if not content_length then
             -- HTTP 1.0 with no length will close connection. Read to the end.
             local str, err = sock:receive("*a")
@@ -393,6 +398,47 @@ local function _read_trailers(res)
 end
 
 
+local function _send_body(sock, body)
+    if type(body) == 'function' then
+        repeat
+            local chunk, err, partial = body()
+            if chunk then
+                local ok,err = sock:send(chunk)
+                if not ok then
+                    return nil, err
+                end
+            elseif err ~= nil then
+                return nil, err, partial
+            end
+        until chunk == nil
+    elseif body ~= nil then
+        local bytes, err = sock:send(body)
+        if not bytes then
+            return nil, err
+        end
+    end
+    return true, nil
+end
+
+
+local function _handle_continue(sock, body)
+    local status, version, err = _receive_status(sock)
+    if not status then
+        return nil, err
+    end
+
+    -- Only send body if we receive a 100 Continue
+    if status == 100 then
+        local ok, err = sock:receive("*l") -- Read carriage return
+        if not ok then
+            return nil, err
+        end
+        _send_body(sock, body)
+    end
+    return status, version, err
+end
+
+
 function _M.request(self, params)
     -- Apply defaults
     setmetatable(params, { __index = DEFAULT_PARAMS })
@@ -402,7 +448,7 @@ function _M.request(self, params)
     local headers = params.headers or {}
     
     -- Ensure minimal headers are set
-    if body and not headers["Content-Length"] then
+    if type(body) == 'string' and not headers["Content-Length"] then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
@@ -427,17 +473,28 @@ function _M.request(self, params)
     end
 
     -- Send the request body
-    if body then
-        local bytes, err = sock:send(body)
-        if not bytes then
-            return nil, err
+    local status, version, err
+    if headers["Expect"] == '100-continue' then
+        local _status, _version, _err = _handle_continue(sock, body)
+        if not _status then
+            return nil, _err
+        elseif _status ~= 100 then
+            -- Didn't get a 100 Continue, this is the final status
+            status, version, err = _status, _version, _err
+        end
+    else
+        local ok, err, partial = _send_body(sock, body)
+        if not ok then
+            return nil, err, partial
         end
     end
 
     -- Receive the status and headers
-    local status, version, err = _receive_status(sock)
-    if not status then 
-        return nil, err
+    if not status then
+        status, version, err = _receive_status(sock)
+        if not status then
+            return nil, err
+        end
     end
 
     local res_headers, err = _receive_headers(sock)
@@ -497,7 +554,7 @@ function _M.request_uri(self, uri, params)
     local scheme, host, port, path = unpack(parsed_uri)
     if not params.path then params.path = path end
 
-    local c, err = self:connect(host, port)
+    local c, err = self:connect(host, port, {ssl = scheme == "https", ssl_verify_name=true})
     if not c then
         return nil, err
     end
@@ -520,6 +577,32 @@ function _M.request_uri(self, uri, params)
     end
 
     return res, nil
+end
+
+
+function _M.get_client_body_reader(self, chunksize)
+    local chunksize = chunksize or 65536
+    local sock, err = ngx_req_socket()
+
+    if not sock then
+        if err == "no body" then
+            return nil
+        else
+            return nil, err
+        end
+    end
+
+    local headers = ngx_req_get_headers()
+    local length = headers["Content-Length"]
+    local encoding = headers["Transfer-Encoding"]
+    if length then
+        return _body_reader(sock, tonumber(length), chunksize)
+    elseif str_lower(encoding) == 'chunked' then
+        -- Not yet supported by ngx_lua but should just work...
+        return _chunked_body_reader(sock, chunksize)
+    else
+       return nil, "Unknown transfer encoding"
+    end
 end
 
 

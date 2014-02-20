@@ -104,4 +104,81 @@ c: 3
 [error]
 [warn]
 
+=== TEST 3: 100 Continue does not end requset
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
+            local res, err = httpc:request{
+                body = "a=1&b=2&c=3",
+                path = "/b",
+                headers = {
+                    ["Expect"] = "100-continue",
+                    ["Content-Type"] = "application/x-www-form-urlencoded",
+                }
+            }
+            ngx.say(res.status)
+            ngx.say(res:read_body())
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            local args = ngx.req.get_post_args()
+            ngx.say("a: ", args.a)
+            ngx.say("b: ", args.b)
+            ngx.print("c: ", args.c)
+        ';
+    }
+--- request
+GET /a
+--- response_body
+200
+a: 1
+b: 2
+c: 3
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 4: Return non-100 status to user
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
+            local res, err = httpc:request{
+                path = "/b",
+                headers = {
+                    ["Expect"] = "100-continue",
+                    ["Content-Type"] = "application/x-www-form-urlencoded",
+                }
+            }
+            if not res then
+                ngx.say(err)
+            end
+            ngx.say(res.status)
+            ngx.say(res:read_body())
+            httpc:close()
+        ';
+    }
+    location = /b {
+        return 417 "Expectation Failed";
+    }
+--- request
+GET /a
+--- response_body
+417
+Expectation Failed
+--- no_error_log
+[error]
+[warn]
 
