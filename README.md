@@ -257,6 +257,7 @@ When the request is successful, `res` will contain the following fields:
 
 * `status` The status code.
 * `headers` A table of headers.
+* `has_body` A boolean flag indicating if there is a body to be read. 
 * `body_reader` An iterator function for reading the body in a streaming fashion.
 * `read_body` A method to read the entire body into a string.
 * `read_trailers` A method to merge any trailers underneath the headers, after reading the body.

@@ -511,9 +511,11 @@ function _M.request(self, params)
 
     local body_reader = _no_body_reader
     local trailer_reader, err = nil, nil
+    local has_body = false
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
+        has_body = true
         local length = tonumber(res_headers["Content-Length"])
         local encoding = res_headers["Transfer-Encoding"] or ""
 
@@ -534,6 +536,7 @@ function _M.request(self, params)
         return { 
             status = status, 
             headers = res_headers, 
+            has_body = has_body,
             body_reader = body_reader,
             read_body = _read_body,
             trailer_reader = trailer_reader,
