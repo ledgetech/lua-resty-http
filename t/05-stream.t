@@ -222,6 +222,67 @@ nil
 [warn]
 
 
+=== TEST 4b: HTTP 1.0 body reader with max chunk size returns the right content length.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+            
+            local res, err = httpc:request{
+                path = "/b",
+                version = 1.0,
+            }
+
+            local chunks = {}
+            repeat
+                local chunk = res.body_reader(8192)
+                if chunk then
+                    table.insert(chunks, chunk)
+                end
+            until not chunk
+
+            local body = table.concat(chunks)
+            ngx.say(#body)
+            ngx.say(#chunks)
+
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            local sock, err = ngx.req.socket(true)
+            if not sock then
+                ngx.say(err)
+            end
+
+            local res = {}
+            table.insert(res, "HTTP/1.0 200 OK")
+            table.insert(res, "Date: " .. ngx.http_time(ngx.time()))
+            table.insert(res, "")
+
+            local len = 32769
+            local t = {}
+            for i=1,len do
+                t[i] = 0
+            end
+            table.insert(res, table.concat(t))
+            sock:send(table.concat(res, "\\r\\n"))
+        ';
+    }
+--- request
+GET /a
+--- response_body
+32769
+5
+--- no_error_log
+[error]
+[warn]
+
+
 === TEST 5: Chunked streaming body reader with max chunk size returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config

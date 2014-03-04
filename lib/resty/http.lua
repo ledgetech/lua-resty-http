@@ -302,24 +302,27 @@ end
 local function _body_reader(sock, content_length, default_chunksize)
     return co_wrap(function(max_chunk_size)
         local max_chunk_size = max_chunk_size or default_chunksize
-        if not content_length then
-            -- HTTP 1.0 with no length will close connection. Read to the end.
-            local str, err = sock:receive("*a")
-            if not str then
-                co_yield(nil, err)
-            end
 
-            co_yield(str)
+        if not content_length and max_chunk_size then
+            -- We have no length, but wish to stream.
+            -- HTTP 1.0 with no length will close connection, so read chunks to the end.
+            repeat
+                local str, err, partial = sock:receive(max_chunk_size)
+                if not str and err == "closed" then
+                    co_yield(partial, err)
+                end
+
+                co_yield(str)
+            until not str
+
+        elseif not content_length then
+            -- We have no length but don't wish to stream.
+            -- HTTP 1.0 with no length will close connection, so read to the end.
+            co_yield(sock:receive("*a"))
 
         elseif not max_chunk_size then
-            -- We have a length and potentially keep-alive, but want the whole 
-            -- thing.
-            local str, err = sock:receive(content_length)
-            if not str then
-                co_yield(nil, err)
-            end
-
-            co_yield(str) 
+            -- We have a length and potentially keep-alive, but want everything.
+            co_yield(sock:receive(content_length))
 
         else
             -- We have a length and potentially a keep-alive, and wish to stream
