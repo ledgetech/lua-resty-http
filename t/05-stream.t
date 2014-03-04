@@ -203,7 +203,7 @@ nil
     location = /b {
         chunked_transfer_encoding off;
         content_by_lua '
-            local len = 32768
+            local len = 32769
             local t = {}
             for i=1,len do
                 t[i] = 0
@@ -214,15 +214,15 @@ nil
 --- request
 GET /a
 --- response_body
-32768
+32769
 nil
-4
+5
 --- no_error_log
 [error]
 [warn]
 
 
-=== TEST 4b: HTTP 1.0 body reader with max chunk size returns the right content length.
+=== TEST 4b: HTTP 1.0 body reader with no content length, stream works as expected.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
