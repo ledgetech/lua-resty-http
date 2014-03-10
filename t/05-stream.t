@@ -185,11 +185,13 @@ nil
             }
 
             local chunks = {}
+            local size = 8192
             repeat
-                local chunk = res.body_reader(8192)
+                local chunk = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
                 end
+                size = size + size
             until not chunk
 
             local body = table.concat(chunks)
@@ -216,7 +218,7 @@ GET /a
 --- response_body
 32769
 nil
-5
+3
 --- no_error_log
 [error]
 [warn]
@@ -237,11 +239,13 @@ nil
             }
 
             local chunks = {}
+            local size = 8192
             repeat
-                local chunk = res.body_reader(8192)
+                local chunk = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
                 end
+                size = size + size
             until not chunk
 
             local body = table.concat(chunks)
@@ -277,7 +281,7 @@ nil
 GET /a
 --- response_body
 32769
-5
+3
 --- no_error_log
 [error]
 [warn]
@@ -297,11 +301,13 @@ GET /a
             }
 
             local chunks = {}
+            local size = 8192
             repeat
-                local chunk = res.body_reader(8192)
+                local chunk = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
                 end
+                size = size + size
             until not chunk
 
             local body = table.concat(chunks)
@@ -327,7 +333,7 @@ GET /a
 --- response_body
 32768
 chunked
-4
+3
 --- no_error_log
 [error]
 [warn]
@@ -361,7 +367,6 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
 --- no_error_log
 [error]
 [warn]
-
 
 === TEST 7: Request reader correctly reads body in chunks
 --- http_config eval: $::HttpConfig

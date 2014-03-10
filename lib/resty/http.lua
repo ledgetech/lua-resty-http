@@ -238,9 +238,9 @@ local function _receive_headers(sock)
 end
 
 
-local function _chunked_body_reader(sock, default_chunksize)
+local function _chunked_body_reader(sock, default_chunk_size)
     return co_wrap(function(max_chunk_size)
-        local max_chunk_size = max_chunk_size or default_chunksize
+        local max_chunk_size = max_chunk_size or default_chunk_size
         local remaining = 0
         local length
 
@@ -283,7 +283,8 @@ local function _chunked_body_reader(sock, default_chunksize)
                 if not str then
                     co_yield(nil, err)
                 end
-                co_yield(str)
+                
+                max_chunk_size = co_yield(str) or default_chunk_size
 
                 -- If we're finished with this chunk, read the carriage return.
                 if remaining == 0 then
@@ -299,9 +300,9 @@ local function _chunked_body_reader(sock, default_chunksize)
 end
 
 
-local function _body_reader(sock, content_length, default_chunksize)
+local function _body_reader(sock, content_length, default_chunk_size)
     return co_wrap(function(max_chunk_size)
-        local max_chunk_size = max_chunk_size or default_chunksize
+        local max_chunk_size = max_chunk_size or default_chunk_size
 
         if not content_length and max_chunk_size then
             -- We have no length, but wish to stream.
@@ -309,10 +310,10 @@ local function _body_reader(sock, content_length, default_chunksize)
             repeat
                 local str, err, partial = sock:receive(max_chunk_size)
                 if not str and err == "closed" then
-                    co_yield(partial, err)
+                    max_chunk_size = co_yield(partial, err) or default_chunk_size
                 end
 
-                co_yield(str)
+                max_chunk_size = co_yield(str) or default_chunk_size
             until not str
 
         elseif not content_length then
@@ -337,11 +338,11 @@ local function _body_reader(sock, content_length, default_chunksize)
                 if length > 0 then
                     local str, err = sock:receive(length)
                     if not str then
-                        co_yield(nil, err)
+                        max_chunk_size = co_yield(nil, err) or default_chunk_size
                     end
                     received = received + length
 
-                    co_yield(str)
+                    max_chunk_size = co_yield(str) or default_chunk_size
                 end
 
             until length == 0
