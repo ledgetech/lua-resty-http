@@ -443,10 +443,10 @@ local function _handle_continue(sock, body)
 end
 
 
-function _M.request(self, params)
+function _M.send_request(self, params)
     -- Apply defaults
     setmetatable(params, { __index = DEFAULT_PARAMS })
-    
+
     local sock = self.sock
     local body = params.body
     local headers = params.headers or {}
@@ -492,6 +492,13 @@ function _M.request(self, params)
             return nil, err, partial
         end
     end
+
+    return true
+end
+
+
+function _M.read_response(self, params)
+    local sock = self.sock
 
     -- Receive the status and headers
     if not status then
@@ -547,6 +554,42 @@ function _M.request(self, params)
             read_trailers = _read_trailers,
         }
     end
+end
+
+
+function _M.request(self, params)
+    local res, err = self:send_request(params)
+    if not res then
+        return res, err
+    else
+        return self:read_response(params)
+    end
+end
+
+
+function _M.request_pipeline(self, requests)
+    for i, params in ipairs(requests) do
+        local res, err = self:send_request(params)
+        if not res then
+            return res, err
+        end
+    end
+
+    local responses = {}
+    for i, params in ipairs(requests) do
+        responses[i] = setmetatable({ params = params }, {
+            -- Read each actual response lazily, at the point the user tries
+            -- to access any of the fields.
+            __index = function(t, k)
+                local res = _M.read_response(self, t.params)
+                for rk, rv in pairs(res) do
+                    t[rk] = rv
+                end
+                return t[k]
+            end,
+        })
+    end
+    return responses
 end
 
 
