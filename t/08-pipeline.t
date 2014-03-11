@@ -20,7 +20,7 @@ no_long_string();
 run_tests();
 
 __DATA__
-=== TEST 1 Simple interface, Connection: Keep-alive. Test the connection is reused.
+=== TEST 1 Test that pipelined reqests can be read correctly.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
