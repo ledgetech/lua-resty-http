@@ -1,11 +1,20 @@
 # lua-resty-http
 
+Lua HTTP client cosocket driver for [OpenResty](http://openresty.org/) / [ngx_lua](https://github.com/chaoslawful/lua-nginx-module).
 
-Lua HTTP client driver for [ngx_lua](https://github.com/chaoslawful/lua-nginx-module) based on the cosocket API. Supports HTTP 1.0 and 1.1, including chunked transfer encoding for response bodies, and provides a streaming interface to the body irrespective of transfer encoding.
+# Status
 
-## Status
+Ready for testing. Probably production ready in most cases, though not yet proven in the wild. Please check the issues list and let me know if you have any problems / questions.
 
-This is newish, but works and passes tests. Please send any design feedback or actual bugs on the issues page.
+# Features
+
+* HTTP 1.0 and 1.1
+* Streaming interface to reading bodies using coroutines, for predictable memory usage in Lua land.
+* Alternative simple interface for singleshot requests without manual connection step.
+* Chunked transfer encoding.
+* Keepalive.
+* Pipelining.
+* Trailers.
 
 ## Synopsis
 
@@ -13,10 +22,12 @@ This is newish, but works and passes tests. Please send any design feedback or a
 lua_package_path "/path/to/lua-resty-http/lib/?.lua;;";
 
 server {
+
+
   location /simpleinterface {
     content_by_lua '
     
-      -- For simple work, use the URI interface...
+      -- For simple singleshot requests, use the URI interface.
       local httpc = http.new()
       local res, err = httpc:request_uri("http://example.com/helloworld", {
         method = "POST",
@@ -37,64 +48,30 @@ server {
       end
       
       ngx.say(res.body)
+      
     ';
   }
 
-  location /generic {
+
+  location /genericinterface {
     content_by_lua '
+    
       local http = require "resty.http"
       local httpc = http.new()
       
-      -- The generic form gives us more control. We must connect manually...
+      -- The generic form gives us more control. We must connect manually.
       httpc:set_timeout(500)
       httpc:connect("127.0.0.1", 80)
       
-      -- And request using a path, rather than a full URI...
+      -- And request using a path, rather than a full URI.
       local res, err = httpc:request{
           path = "/helloworld",
           headers = {
               ["Host"] = "example.com",
           },
       }
-
-      -- Or stream the request body in
-      local client_body_reader, err = httpc:get_client_body_reader()
-      if not client_body_reader then
-          if err == "chunked request bodies not supported yet" then
-              ngx.status = 411
-              ngx.say("411 Length Required")
-              ngx.exit(ngx.status)
-          end
-      end
-
-      local res, err = httpc:request{
-          path = "/helloworld",
-          body = client_body_reader,
-          headers = {
-              ["Host"] = "example.com",
-          },
-      }
-
-      if not res then
-          ngx.log(ngx.ERR, err)
-          ngx.exit(500)
-      end
       
-      ngx.say(res.status)
-      
-      for k,v in pairs(res.headers) do
-          --
-      end
-      
-      -- METHOD 1.
-      -- At this point, the body has not been read. You can read it in one go 
-      -- if you like...
-      local body = res:read_body()
-      
-      
-      -- METHOD 2.
-      -- Or, stream the body using an iterator, for predictable memory usage 
-      -- in Lua land.
+      -- Now we can use the body_reader iterator, to stream the body according to our desired chunk size.
       local reader = res.body_reader
       
       repeat
@@ -109,62 +86,22 @@ server {
         end
       until not chunk
       
-      
-      -- METHOD 3.
-      -- Or, introduce your own coroutine filter to modify the chunks as they arrive.
-      function get_filter(reader)
-          return coroutine.wrap(function(max_bytes)
-              repeat
-                  local chunk, err = reader(max_bytes)
-                  if not chunk then
-                      coroutine.yield(nil, err)
-                      break
-                  end
-      
-                  -- Process data
-      
-                  coroutine.yield(chunk)
-              until not chunk
-          end)
-      end
-
-      -- pass the body reader to your filter
-      local reader = get_filter(res.body_reader)
-      
-      -- then read via your filter(s) as above
-      repeat
-        local chunk, err = reader(8192)
-        if err then
-          ngx.log(ngx.ERR, err)
-          break
-        end
-        
-        if chunk then
-          ngx.print(chunk)
-        end
-      until not chunk
-        
-      
-      -- If the response advertised trailers, you can merge them with the headers now
-      res:read_trailers()
-      
       httpc:set_keepalive()
+      
     ';
   }
 }
 ````
 
-## API
+# Connection
 
-### Connection
-
-#### new
+## new
 
 `syntax: httpc = http.new()`
 
 Creates the http object. In case of failures, returns `nil` and a string describing the error.
 
-#### connect
+## connect
 
 `syntax: ok, err = httpc:connect(host, port, options_table?)`
 
@@ -179,13 +116,13 @@ An optional Lua table can be specified as the last argument to this method to sp
 * `pool`
 : Specifies a custom name for the connection pool being used. If omitted, then the connection pool name will be generated from the string template `<host>:<port>` or `<unix-socket-path>`.
 
-#### set_timeout
+## set_timeout
 
 `syntax: httpc:set_timeout(time)`
 
 Sets the timeout (in ms) protection for subsequent operations, including the `connect` method.
 
-#### set_keepalive
+## set_keepalive
 
 `syntax: ok, err = httpc:set_keepalive(max_idle_timeout, pool_size)`
 
@@ -197,9 +134,9 @@ Only call this method in the place you would have called the `close` method inst
 
 Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
 
-In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
+In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
 
-#### get_reused_times
+## get_reused_times
 
 `syntax: times, err = httpc:get_reused_times()`
 
@@ -207,7 +144,7 @@ This method returns the (successfully) reused times for the current connection. 
 
 If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
 
-#### close
+## close
 
 `syntax: ok, err = http:close()`
 
@@ -215,31 +152,10 @@ Closes the current connection and returns the status.
 
 In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
 
-#### get_client_body_reader
 
-`syntax: reader, err = httpc:get_client_body_reader()`
+# Requesting
 
-Returns an iterator function which can be used to read the downstream request body in a chunked fashion. This iterator can be used as the value for the body field in request params.
-
-```lua
-local req_reader = httpc:get_client_body_reader()
-
-repeat
-  local chunk, err = req_reader(8192)
-  if err then
-    ngx.log(ngx.ERR, err)
-    break
-  end
-
-  if chunk then
-    -- process
-  end
-until not chunk
-```
-
-### Requesting
-
-#### request
+## request
 
 `syntax: res, err = httpc:request(params)`
 
@@ -251,7 +167,7 @@ The `params` table accepts the following fields:
 * `method` The HTTP method string.
 * `path` The path string.
 * `headers` A table of request headers.
-* `body` The request body as a string or an iterator function.
+* `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
 
 When the request is successful, `res` will contain the following fields:
 
@@ -262,7 +178,7 @@ When the request is successful, `res` will contain the following fields:
 * `read_body` A method to read the entire body into a string.
 * `read_trailers` A method to merge any trailers underneath the headers, after reading the body.
 
-##### res.body_reader
+## res.body_reader
 
 The `body_reader` iterator can be used to stream the response body in chunk sizes of your choosing, as follows:
 
@@ -286,21 +202,21 @@ If the reader is called with no arguments, the behaviour depends on the type of 
 
 Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get chunks smaller than the size you ask, as a remainder of the actual HTTP chunks.
 
-##### res:read_body
+## res:read_body
 
 `syntax: body, err = res:read_body()`
 
-Reads the body into a local string.
+Reads the entire body into a local string.
 
 
-##### res:read_trailers
+## res:read_trailers
 
 `syntax: res:read_trailers()`
 
-This merges any trailers headers underneath the `res.headers` table itself.
+This merges any trailers underneath the `res.headers` table itself. Must be called after reading the body.
 
 
-#### request_uri
+## request_uri
 
 `syntax: res, err = httpc:request_uri(uri, params)`
 
@@ -315,23 +231,73 @@ Additionally there is no ability to stream the response body in this mode. If th
 * `body` The response body as a string.
 
 
-### Utility
+## request_pipeline
 
-#### parse_uri
+`syntax: responses, err = httpc:request_pipeline(params)`
+
+This method works as per the [request](#request) method above, but `params` is instead a table of param tables. Each request is sent in order, and `responses` is returned as a table of response handles. For example:
+
+```lua
+local responses = httpc:request_pipeline{
+  {
+    path = "/b",
+  },
+  {
+    path = "/c",
+  },
+  {
+    path = "/d",
+  }
+}
+
+for i,r in ipairs(responses) do
+  ngx.say(r.status)
+  ngx.say(r:read_body())
+end
+```
+
+Due to the nature of pipelining, no responses are actually read until you attempt to use the response fields (status / headers etc). And since the responses are read off in order, you must read the entire body (and any trailers if you have them), before attempting to read the next response.
+
+
+# Utility
+
+## parse_uri
 
 `syntax: local scheme, host, port, path = unpack(httpc:parse_uri(uri))`
 
 This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI. 
 
 
-## Author
+## get_client_body_reader
+
+`syntax: reader, err = httpc:get_client_body_reader()`
+
+Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. This iterator can also be used as the value for the body field in request params, allowing one to stream the request body into a proxied upstream request.
+
+```lua
+local req_reader = httpc:get_client_body_reader()
+
+repeat
+  local chunk, err = req_reader(8192)
+  if err then
+    ngx.log(ngx.ERR, err)
+    break
+  end
+
+  if chunk then
+    -- process
+  end
+until not chunk
+```
+
+# Author
 
 James Hurst <james@pintsized.co.uk>
 
 Originally started life based on https://github.com/bakins/lua-resty-http-simple. Cosocket docs and implementation borrowed from the other lua-resty-* cosocket modules.
 
 
-## Licence
+# Licence
 
 This module is licensed under the 2-clause BSD license.
 
