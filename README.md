@@ -272,7 +272,7 @@ This is a convenience function allowing one to more easily use the generic inter
 
 `syntax: reader, err = httpc:get_client_body_reader()`
 
-Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. This iterator can also be used as the value for the body field in request params, allowing one to stream the request body into a proxied upstream request.
+Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. For example:
 
 ```lua
 local req_reader = httpc:get_client_body_reader()
@@ -288,6 +288,17 @@ repeat
     -- process
   end
 until not chunk
+```
+
+This iterator can also be used as the value for the body field in request params, allowing one to stream the request body into a proxied upstream request.
+
+```lua
+local client_body_reader, err = httpc:get_client_body_reader()
+
+local res, err = httpc:request{
+   path = "/helloworld",
+   body = client_body_reader,
+}
 ```
 
 # Author
