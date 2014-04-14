@@ -406,17 +406,21 @@ local function _send_body(sock, body)
     if type(body) == 'function' then
         repeat
             local chunk, err, partial = body()
+
             if chunk then
                 local ok,err = sock:send(chunk)
+
                 if not ok then
                     return nil, err
                 end
             elseif err ~= nil then
                 return nil, err, partial
             end
+
         until chunk == nil
     elseif body ~= nil then
         local bytes, err = sock:send(body)
+
         if not bytes then
             return nil, err
         end
