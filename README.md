@@ -258,7 +258,7 @@ end
 
 Due to the nature of pipelining, no responses are actually read until you attempt to use the response fields (status / headers etc). And since the responses are read off in order, you must read the entire body (and any trailers if you have them), before attempting to read the next response.
 
-Note this doesn't preculde the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
+Note this doesn't preclude the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
 
 
 # Utility
