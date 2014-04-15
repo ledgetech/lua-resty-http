@@ -16,4 +16,5 @@ install: all
 
 test: all
 	PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH TEST_NGINX_NO_SHUFFLE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
+	util/lua-releng
 
