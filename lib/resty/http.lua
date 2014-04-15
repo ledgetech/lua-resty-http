@@ -163,7 +163,6 @@ end
 local function _format_request(params)
     local version = params.version
     local headers = params.headers or {}
-    local body = params.body
 
     local query = params.query or ""
     if query then
@@ -480,17 +479,9 @@ function _M.send_request(self, params)
         return nil, err
     end
 
-    -- Send the request body
-    local status, version, err
-    if headers["Expect"] == '100-continue' then
-        local _status, _version, _err = _handle_continue(sock, body)
-        if not _status then
-            return nil, _err
-        elseif _status ~= 100 then
-            -- Didn't get a 100 Continue, this is the final status
-            status, version, err = _status, _version, _err
-        end
-    else
+    -- Send the request body, unless we expect: continue, in which case
+    -- we handle this as part of reading the response.
+    if headers["Expect"] ~= "100-continue" then
         local ok, err, partial = _send_body(sock, body)
         if not ok then
             return nil, err, partial
@@ -504,13 +495,27 @@ end
 function _M.read_response(self, params)
     local sock = self.sock
 
-    -- Receive the status and headers
+    local status, version, err
+
+    -- If we expect: continue, we need to handle this, sending the body if allowed.
+    -- If we don't get 100 back, then status is the actual status.
+    if params.headers["Expect"] == "100-continue" then
+        local _status, _version, _err = _handle_continue(sock, params.body)
+        if not _status then
+            return nil, _err
+        elseif _status ~= 100 then
+            status, version, err = _status, _version, _err
+        end
+    end
+
+    -- Just read the status as normal.
     if not status then
         status, version, err = _receive_status(sock)
         if not status then
             return nil, err
         end
     end
+
 
     local res_headers, err = _receive_headers(sock)
     if not res_headers then 
@@ -573,6 +578,10 @@ end
 
 function _M.request_pipeline(self, requests)
     for i, params in ipairs(requests) do
+        if params.headers and params.headers["Expect"] == "100-continue" then
+            return nil, "Cannot pipeline request specifying Expect: 100-continue"
+        end
+
         local res, err = self:send_request(params)
         if not res then
             return res, err
