@@ -50,18 +50,21 @@ __DATA__
     }
     location = /b {
         content_by_lua '
+            ngx.status = 200
             ngx.header["X-Res"] = "B"
             ngx.print("B")
         ';
     }
     location = /c {
         content_by_lua '
+            ngx.status = 404
             ngx.header["X-Res"] = "C"
             ngx.print("C")
         ';
     }
     location = /d {
         content_by_lua '
+            ngx.status = 200
             ngx.header["X-Res"] = "D"
             ngx.print("D")
         ';
@@ -72,7 +75,7 @@ GET /a
 200
 B
 B
-200
+404
 C
 C
 200
