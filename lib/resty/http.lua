@@ -14,6 +14,9 @@ local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local co_yield = coroutine.yield
+local co_create = coroutine.create
+local co_status = coroutine.status
+local co_resume = coroutine.resume
 
 
 -- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
@@ -25,15 +28,15 @@ local co_yield = coroutine.yield
 --   end
 -- until not chunk
 local co_wrap = function(func) 
-    local co = coroutine.create(func)
+    local co = co_create(func)
     if not co then
         return nil, "could not create coroutine"
     else
         return function(...)
-            if coroutine.status(co) == "suspended" then
-                return select(2, coroutine.resume(co, ...))
+            if co_status(co) == "suspended" then
+                return select(2, co_resume(co, ...))
             else
-                return nil, "can't resume a " .. coroutine.status(co) .. " coroutine"
+                return nil, "can't resume a " .. co_status(co) .. " coroutine"
             end
         end
     end
