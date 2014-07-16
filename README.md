@@ -251,8 +251,10 @@ local responses = httpc:request_pipeline{
 }
 
 for i,r in ipairs(responses) do
-  ngx.say(r.status)
-  ngx.say(r:read_body())
+  if r.status then
+    ngx.say(r.status)
+    ngx.say(r:read_body())
+  end
 end
 ```
 
@@ -260,6 +262,7 @@ Due to the nature of pipelining, no responses are actually read until you attemp
 
 Note this doesn't preclude the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
 
+Be sure to test at least one field (such as status) before trying to use the others, in case a socket read error has occurred.
 
 # Utility
 
