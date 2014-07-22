@@ -83,6 +83,16 @@ function _M.set_timeout(self, timeout)
 end
 
 
+function _M.sslhandshake(self, ...)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:sslhandshake(...)
+end
+
+
 function _M.connect(self, ...)
     local sock = self.sock
     if not sock then
@@ -156,7 +166,13 @@ function _M.parse_uri(self, uri)
 
         return nil, "bad uri"
     else
-        if not m[3] then m[3] = 80 end
+        if not m[3] then
+            if m[1] == "https" then
+                m[3] = 443
+            else
+                m[3] = 80
+            end
+        end
         if not m[4] then m[4] = "/" end
         return m, nil
     end
@@ -632,9 +648,20 @@ function _M.request_uri(self, uri, params)
     local scheme, host, port, path = unpack(parsed_uri)
     if not params.path then params.path = path end
 
-    local c, err = self:connect(host, port, {ssl = scheme == "https", ssl_verify_name=true})
+    local c, err = self:connect(host, port)
     if not c then
         return nil, err
+    end
+
+    if scheme == "https" then
+        local verify = true
+        if params.ssl_verify == false then
+            verify = false
+        end
+        local ok, err = self:sslhandshake(nil, host, verify)
+        if not ok then
+            return nil, err
+        end
     end
 
     local res, err = self:request(params)
