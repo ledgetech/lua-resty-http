@@ -83,7 +83,7 @@ function _M.set_timeout(self, timeout)
 end
 
 
-function _M.sslhandshake(self, ...)
+function _M.ssl_handshake(self, ...)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
@@ -658,7 +658,7 @@ function _M.request_uri(self, uri, params)
         if params.ssl_verify == false then
             verify = false
         end
-        local ok, err = self:sslhandshake(nil, host, verify)
+        local ok, err = self:ssl_handshake(nil, host, verify)
         if not ok then
             return nil, err
         end
