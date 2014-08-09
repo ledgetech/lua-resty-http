@@ -25,8 +25,10 @@ server {
 
 
   location /simpleinterface {
+    resolver 8.8.8.8;  # use Google's open DNS server for an example
+
     content_by_lua '
-    
+
       -- For simple singleshot requests, use the URI interface.
       local httpc = http.new()
       local res, err = httpc:request_uri("http://example.com/helloworld", {
@@ -36,33 +38,37 @@ server {
           ["Content-Type"] = "application/x-www-form-urlencoded",
         }
       })
-      
-      -- In this simple form, there is no manual connection step, so the body is read 
-      -- all in one go, including any trailers, and the connection closed or keptalive 
+
+      if not res then
+        ngx.say("failed to request: ", err)
+        return
+      end
+
+      -- In this simple form, there is no manual connection step, so the body is read
+      -- all in one go, including any trailers, and the connection closed or keptalive
       -- for you.
-  
+
       ngx.status = res.status
-      
+
       for k,v in pairs(res.headers) do
           --
       end
-      
+
       ngx.say(res.body)
-      
     ';
   }
 
 
   location /genericinterface {
     content_by_lua '
-    
+
       local http = require "resty.http"
       local httpc = http.new()
-      
+
       -- The generic form gives us more control. We must connect manually.
       httpc:set_timeout(500)
       httpc:connect("127.0.0.1", 80)
-      
+
       -- And request using a path, rather than a full URI.
       local res, err = httpc:request{
           path = "/helloworld",
@@ -70,24 +76,32 @@ server {
               ["Host"] = "example.com",
           },
       }
-      
+
+      if not res then
+        ngx.say("failed to request: ", err)
+        return
+      end
+
       -- Now we can use the body_reader iterator, to stream the body according to our desired chunk size.
       local reader = res.body_reader
-      
+
       repeat
         local chunk, err = reader(8192)
         if err then
           ngx.log(ngx.ERR, err)
           break
         end
-        
+
         if chunk then
           -- process
         end
       until not chunk
-      
-      httpc:set_keepalive()
-      
+
+      local ok, err = httpc:set_keepalive()
+      if not ok then
+        ngx.say("failed to set keepalive: ", err)
+        return
+      end
     ';
   }
 }
