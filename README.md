@@ -136,6 +136,14 @@ An optional Lua table can be specified as the last argument to this method to sp
 
 Sets the timeout (in ms) protection for subsequent operations, including the `connect` method.
 
+## ssl_handshake
+
+`syntax: session, err = httpc:ssl_handshake(session, host, verify)`
+
+Performs an SSL handshake on the TCP connection, only availble in ngx_lua > v0.9.11
+
+See docs for [ngx.socket.tcp](https://github.com/openresty/lua-nginx-module#ngxsockettcp) for details.
+
 ## set_keepalive
 
 `syntax: ok, err = httpc:set_keepalive(max_idle_timeout, pool_size)`
@@ -182,6 +190,7 @@ The `params` table accepts the following fields:
 * `path` The path string.
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
+* `ssl_verify` Verify SSL cert matches hostname
 
 When the request is successful, `res` will contain the following fields:
 
