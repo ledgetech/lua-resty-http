@@ -100,6 +100,7 @@ function _M.connect(self, ...)
     end
 
     self.host = select(1, ...)
+    self.keepalive = true
 
     return sock:connect(...)
 end

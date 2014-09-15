@@ -34,7 +34,6 @@ __DATA__
 
             ngx.say(res.headers["Connection"])
 
-            local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             ngx.say(httpc:get_reused_times())
         ';
@@ -54,7 +53,7 @@ keep-alive
 [warn]
 
 
-=== TEST 2 Simple interface, Connection: close, test we don't try to keepalive.
+=== TEST 2 Simple interface, Connection: close, test we don't try to keepalive, but also that subsequent connections can keepalive.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -70,7 +69,11 @@ keep-alive
                 }
             )
 
-            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+            ngx.say(httpc:get_reused_times())
+            
+            httpc:set_keepalive()
+
             httpc:connect("127.0.0.1", ngx.var.server_port)
             ngx.say(httpc:get_reused_times())
         ';
@@ -84,6 +87,7 @@ keep-alive
 GET /a
 --- response_body
 0
+1
 --- no_error_log
 [error]
 [warn]
@@ -107,7 +111,6 @@ GET /a
             ngx.say(res.headers["Connection"])
             ngx.say(httpc:set_keepalive())
 
-            local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
             ngx.say(httpc:get_reused_times())
         ';
@@ -128,7 +131,7 @@ keep-alive
 [warn]
 
 
-=== TEST 4 Generic interface, Connection: Close. Test we don't try to keepalive.
+=== TEST 4 Generic interface, Connection: Close. Test we don't try to keepalive, but also that subsequent connections can keepalive.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -152,7 +155,11 @@ keep-alive
             ngx.say(r)
             ngx.say(e)
 
-            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+            ngx.say(httpc:get_reused_times())
+
+            httpc:set_keepalive()
+
             httpc:connect("127.0.0.1", ngx.var.server_port)
             ngx.say(httpc:get_reused_times())
         ';
@@ -169,6 +176,7 @@ close
 2
 connection must be closed
 0
+1
 --- no_error_log
 [error]
 [warn]
