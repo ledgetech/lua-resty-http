@@ -3,7 +3,7 @@
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
-plan tests => repeat_each() * (blocks() * 4) - 1;
+plan tests => repeat_each() * (blocks() * 4);
 
 my $pwd = cwd();
 
@@ -477,3 +477,41 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 10: Issue a notice (but do not error) if trying to read the request body in a subrequest
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        echo_location /b;
+    }
+    location = /b {
+        lua_need_request_body off;
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+
+            local reader, err = httpc:get_client_body_reader(8192)
+            if not reader then
+                ngx.log(ngx.NOTICE, err)
+                return
+            end
+
+            repeat
+                local chunk, err = reader()
+                if chunk then
+                    ngx.print(chunk)
+                end
+            until chunk == nil
+        ';
+    }
+
+--- request
+POST /a
+foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbaz
+--- response_body: 
+--- no_error_log
+[error]
+[warn]
+--- error_log
+attempt to read the request body in a subrequest

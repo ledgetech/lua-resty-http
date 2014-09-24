@@ -688,13 +688,13 @@ end
 
 function _M.get_client_body_reader(self, chunksize)
     local chunksize = chunksize or 65536
-    local sock, err = ngx_req_socket()
+    local ok, sock = pcall(ngx_req_socket)
 
-    if not sock then
-        if err == "no body" then
+    if not ok then
+        if sock == "no body" then
             return nil
         else
-            return nil, err
+            return nil, sock
         end
     end
 
@@ -703,7 +703,7 @@ function _M.get_client_body_reader(self, chunksize)
     local encoding = headers["Transfer-Encoding"]
     if length then
         return _body_reader(sock, tonumber(length), chunksize)
-    elseif str_lower(encoding) == 'chunked' then
+    elseif encoding and str_lower(encoding) == 'chunked' then
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else
