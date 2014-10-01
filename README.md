@@ -16,6 +16,30 @@ Ready for testing. Probably production ready in most cases, though not yet prove
 * Pipelining.
 * Trailers.
 
+# API
+
+* [new](#name)
+* [connect](#connect)
+* [set_timeout](#set_timeout)
+* [ssl_handshake](#ssl_handshake)
+* [set_keepalive](#set_keepalive)
+* [get_reused_times](#get_reused_times)
+* [close](#close)
+* [request](#request)
+* [request_uri](#request_uri)
+* [request_pipeline](#request_pipeline)
+* [Response](#response)
+    * [body_reader](#resbody_reader)
+    * [read_body](#resread_body)
+    * [read_trailes](#resread_trailers)
+* [Proxy](#proxy)
+    * [proxy_request](#proxy_request)
+    * [proxy_response](#proxy_response)
+* [Utility](#utility)
+    * [parse_uri](#parse_uri)
+    * [get_client_body_reader](#get_client_body_reader)
+
+
 ## Synopsis
 
 ```` lua
@@ -201,44 +225,6 @@ When the request is successful, `res` will contain the following fields:
 * `read_body` A method to read the entire body into a string.
 * `read_trailers` A method to merge any trailers underneath the headers, after reading the body.
 
-## res.body_reader
-
-The `body_reader` iterator can be used to stream the response body in chunk sizes of your choosing, as follows:
-
-````lua
-local reader = res.body_reader
-
-repeat
-  local chunk, err = reader(8192)
-  if err then
-    ngx.log(ngx.ERR, err)
-    break
-  end
-  
-  if chunk then
-    -- process
-  end
-until not chunk
-````
-
-If the reader is called with no arguments, the behaviour depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
-
-Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get chunks smaller than the size you ask, as a remainder of the actual HTTP chunks.
-
-## res:read_body
-
-`syntax: body, err = res:read_body()`
-
-Reads the entire body into a local string.
-
-
-## res:read_trailers
-
-`syntax: res:read_trailers()`
-
-This merges any trailers underneath the `res.headers` table itself. Must be called after reading the body.
-
-
 ## request_uri
 
 `syntax: res, err = httpc:request_uri(uri, params)`
@@ -286,6 +272,82 @@ Due to the nature of pipelining, no responses are actually read until you attemp
 Note this doesn't preclude the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
 
 Be sure to test at least one field (such as status) before trying to use the others, in case a socket read error has occurred.
+
+# Response
+
+## res.body_reader
+
+The `body_reader` iterator can be used to stream the response body in chunk sizes of your choosing, as follows:
+
+````lua
+local reader = res.body_reader
+
+repeat
+  local chunk, err = reader(8192)
+  if err then
+    ngx.log(ngx.ERR, err)
+    break
+  end
+  
+  if chunk then
+    -- process
+  end
+until not chunk
+````
+
+If the reader is called with no arguments, the behaviour depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
+
+Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get chunks smaller than the size you ask, as a remainder of the actual HTTP chunks.
+
+## res:read_body
+
+`syntax: body, err = res:read_body()`
+
+Reads the entire body into a local string.
+
+
+## res:read_trailers
+
+`syntax: res:read_trailers()`
+
+This merges any trailers underneath the `res.headers` table itself. Must be called after reading the body.
+
+
+# Proxy
+
+There are two convenience methods for when one simply wishes to proxy the current request to the connected upstream, and safely send it downstream to the client, as a reverse proxy. A complete example:
+
+```lua
+local http = require "resty.http"
+local httpc = http.new()
+
+httpc:set_timeout(500)
+local ok, err = httpc:connect(HOST, PORT)
+
+if not ok then
+  ngx.log(ngx.ERR, err)
+  return
+end
+
+httpc:set_timeout(2000)
+httpc:proxy_response(httpc:proxy_request())
+httpc:set_keepalive()
+```
+
+
+## proxy_request
+
+`syntax: local res, err = httpc:proxy_request(request_body_chunk_size?)`
+
+Performs a request using the current client request arguments, effectively proxying to the connected upstream. The request body will be read in a streaming fashion, according to `request_body_chunk_size` (see [documentation on the client body reader](#get_client_body_reader) below).
+
+
+## proxy_response
+
+`syntax: httpc:proxy_response(res, chunksize?)`
+
+Sets the current response based on the given `res`. Ensures that hop-by-hop headers are not sent downstream, and will read the response according to `chunksize` (see [documentation on the body reader](#resbody_reader) above).
+
 
 # Utility
 
