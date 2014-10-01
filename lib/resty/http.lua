@@ -2,6 +2,7 @@ local ngx_socket_tcp = ngx.socket.tcp
 local ngx_req = ngx.req
 local ngx_req_socket = ngx_req.socket
 local ngx_req_get_headers = ngx_req.get_headers
+local ngx_req_get_method = ngx_req.get_method
 local str_gmatch = string.gmatch
 local str_lower = string.lower
 local str_upper = string.upper
@@ -13,10 +14,27 @@ local ngx_re_match = ngx.re.match
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
+local ngx_NOTICE = ngx.NOTICE
+local ngx_var = ngx.var
 local co_yield = coroutine.yield
 local co_create = coroutine.create
 local co_status = coroutine.status
 local co_resume = coroutine.resume
+
+
+-- http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13.5.1
+local HOP_BY_HOP_HEADERS = {
+    ["connection"]          = true,
+    ["keep-alive"]          = true,
+    ["proxy-authenticate"]  = true,
+    ["proxy-authorization"] = true,
+    ["te"]                  = true,
+    ["trailers"]            = true,
+    ["transfer-encoding"]   = true,
+    ["upgrade"]             = true,
+    ["content-length"]      = true, -- Not strictly hop-by-hop, but Nginx will deal 
+                                    -- with this (may send chunked for example).
+}
 
 
 -- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
@@ -691,24 +709,60 @@ function _M.get_client_body_reader(self, chunksize)
     local ok, sock = pcall(ngx_req_socket)
 
     if not ok then
-        if sock == "no body" then
+        local err = sock
+        if err == "no body" then
             return nil
         else
-            return nil, sock
+            return nil, err
         end
     end
 
     local headers = ngx_req_get_headers()
-    local length = headers["Content-Length"]
-    local encoding = headers["Transfer-Encoding"]
+    local length = headers.content_length
+    local encoding = headers.transfer_encoding
     if length then
         return _body_reader(sock, tonumber(length), chunksize)
     elseif encoding and str_lower(encoding) == 'chunked' then
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else
-       return nil, "Unknown transfer encoding"
+       return nil
     end
+end
+
+
+function _M.proxy_request(self, chunksize)
+    return self:request{
+        method = ngx_req_get_method(),
+        path = ngx_var.uri .. ngx_var.is_args .. (ngx_var.query_string or ""),
+        body = self:get_client_body_reader(chunksize),
+        headers = ngx_req_get_headers(),
+    }
+end
+
+
+function _M.proxy_response(self, response, chunksize)
+    ngx.status = response.status
+    
+    -- Filter out hop-by-hop headeres
+    for k,v in pairs(response.headers) do
+        if not HOP_BY_HOP_HEADERS[str_lower(k)] then
+            ngx.header[k] = v
+        end
+    end
+
+    local reader = response.body_reader
+    repeat
+        local chunk, err = reader(chunksize)
+        if err then
+            ngx_log(ngx_ERR, err)
+            break
+        end
+
+        if chunk then
+            ngx.print(chunk)
+        end
+    until not chunk
 end
 
 
