@@ -706,10 +706,13 @@ end
 
 function _M.get_client_body_reader(self, chunksize)
     local chunksize = chunksize or 65536
-    local ok, sock = pcall(ngx_req_socket)
+    local ok, sock, err = pcall(ngx_req_socket)
 
     if not ok then
-        local err = sock
+        return nil, sock -- pcall err
+    end
+
+    if not sock then
         if err == "no body" then
             return nil
         else
@@ -742,6 +745,11 @@ end
 
 
 function _M.proxy_response(self, response, chunksize)
+    if not response then
+        ngx_log(ngx_ERR, "no response provided")
+        return
+    end
+
     ngx.status = response.status
     
     -- Filter out hop-by-hop headeres
