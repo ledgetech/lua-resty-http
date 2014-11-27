@@ -264,7 +264,10 @@ local function _receive_headers(sock)
 
         for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
             if headers[key] then
-                headers[key] = headers[key] .. ", " .. tostring(val)
+                if type(headers[key]) ~= "table" then
+                    headers[key] = {headers[key]}
+                end
+                headers[key][#headers[key]+1] = tostring(val)
             else
                 headers[key] = tostring(val)
             end
@@ -561,7 +564,13 @@ function _M.read_response(self, params)
     end
 
     -- Determine if we should keepalive or not.
-    local connection = str_lower(res_headers["Connection"] or "")
+    local conn_header = res_headers["Connection"]
+    local connection
+    if type(conn_header) == "table" then
+        connection = str_lower(conn_header[#conn_header])
+    else
+        connection = str_lower(conn_header or "")
+    end
     if  (version == 1.1 and connection == "close") or
         (version == 1.0 and connection ~= "keep-alive") then
             self.keepalive = false
@@ -574,8 +583,20 @@ function _M.read_response(self, params)
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
         has_body = true
-        local length = tonumber(res_headers["Content-Length"])
-        local encoding = res_headers["Transfer-Encoding"] or ""
+        local ct_header = res_headers["Content-Length"]
+        local length
+        if type(ct_header) == "table" then
+            length = tonumber(ct_header[#ct_header])
+        else
+            length = tonumber(ct_header)
+        end
+        local enc_header = res_headers["Transfer-Encoding"]
+        local encoding
+        if type(enc_header) == "table" then
+            encoding = enc_header[#enc_header]
+        else
+            encoding = enc_header or ""
+        end
 
         if version == 1.1 and str_lower(encoding) == "chunked" then
             body_reader, err = _chunked_body_reader(sock)
