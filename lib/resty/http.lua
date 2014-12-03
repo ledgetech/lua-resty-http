@@ -8,6 +8,7 @@ local str_lower = string.lower
 local str_upper = string.upper
 local str_find = string.find
 local str_sub = string.sub
+local str_gsub = string.gsub
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
@@ -254,8 +255,34 @@ local function _receive_status(sock)
 end
 
 
+-- Metatable for header field case insensitivity. We use a proxy table, so that when case is used
+-- consistently the metatable lookup is not required. On a lookup "miss", we try a key in the
+-- "normalised" table.
+local headers_mt = {
+    normalised = {},
+}
+
+headers_mt.__index = function(t, k)
+    k = str_gsub(str_lower(k), "-", "_")
+    if headers_mt.normalised[k] then
+        return rawget(t, headers_mt.normalised[k])
+    end
+end
+
+headers_mt.__newindex = function(t, k, v)
+    local k_low = str_gsub(str_lower(k), "-", "_")
+    if not headers_mt.normalised[k_low] then
+        headers_mt.normalised[k_low] = k
+        rawset(t, k, v)
+    else
+        rawset(t, headers_mt.normalised[k_low], v)
+    end
+end
+
+
 local function _receive_headers(sock)
     local headers = {}
+    setmetatable(headers, headers_mt)
 
     repeat
         local line, err = sock:receive("*l")
