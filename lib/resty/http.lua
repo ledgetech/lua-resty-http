@@ -9,6 +9,7 @@ local str_upper = string.upper
 local str_find = string.find
 local str_sub = string.sub
 local tbl_concat = table.concat
+local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
 local ngx_log = ngx.log
@@ -264,7 +265,18 @@ local function _receive_headers(sock)
 
         for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
             if headers[key] then
-                headers[key] = headers[key] .. ", " .. tostring(val)
+                -- We already have this header field. We MAY combine these to a comma 
+                -- separated list (which is saner for most cases), but Set-Cookie must 
+                -- be handled as an exception.
+                -- http://tools.ietf.org/html/rfc7230#section-3.2.2
+                if str_lower(key) == "set-cookie" then
+                    if type(headers[key]) ~= "table" then
+                        headers[key] = { headers[key] }
+                    end
+                    tbl_insert(headers[key], tostring(val))
+                else
+                    headers[key] = headers[key] .. ", " .. tostring(val)
+                end
             else
                 headers[key] = tostring(val)
             end
@@ -561,10 +573,12 @@ function _M.read_response(self, params)
     end
 
     -- Determine if we should keepalive or not.
-    local connection = str_lower(res_headers["Connection"] or "")
-    if  (version == 1.1 and connection == "close") or
-        (version == 1.0 and connection ~= "keep-alive") then
+    local ok, connection = pcall(str_lower, res_headers["Connection"])
+    if ok then
+        if  (version == 1.1 and connection == "close") or
+            (version == 1.0 and connection ~= "keep-alive") then
             self.keepalive = false
+        end
     end
 
     local body_reader = _no_body_reader
@@ -573,14 +587,17 @@ function _M.read_response(self, params)
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
-        has_body = true
-        local length = tonumber(res_headers["Content-Length"])
-        local encoding = res_headers["Transfer-Encoding"] or ""
-
-        if version == 1.1 and str_lower(encoding) == "chunked" then
+        local ok, encoding = pcall(str_lower, res_headers["Transfer-Encoding"])
+        if ok and version == 1.1 and encoding == "chunked" then
             body_reader, err = _chunked_body_reader(sock)
+            has_body = true
         else
-            body_reader, err = _body_reader(sock, length)
+
+            local ok, length = pcall(tonumber, res_headers["Content-Length"])
+            if ok then
+                body_reader, err = _body_reader(sock, length)
+                has_body = true
+            end
         end
     end
 
