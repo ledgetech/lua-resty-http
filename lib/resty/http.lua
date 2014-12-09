@@ -292,18 +292,10 @@ local function _receive_headers(sock)
 
         for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
             if headers[key] then
-                -- We already have this header field. We MAY combine these to a comma 
-                -- separated list (which is saner for most cases), but Set-Cookie must 
-                -- be handled as an exception.
-                -- http://tools.ietf.org/html/rfc7230#section-3.2.2
-                if str_lower(key) == "set-cookie" then
-                    if type(headers[key]) ~= "table" then
-                        headers[key] = { headers[key] }
-                    end
-                    tbl_insert(headers[key], tostring(val))
-                else
-                    headers[key] = headers[key] .. ", " .. tostring(val)
+                if type(headers[key]) ~= "table" then
+                    headers[key] = { headers[key] }
                 end
+                tbl_insert(headers[key], tostring(val))
             else
                 headers[key] = tostring(val)
             end
