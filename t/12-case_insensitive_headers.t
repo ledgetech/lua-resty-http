@@ -56,3 +56,39 @@ bar
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 2: Test request headers are normalised
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect("127.0.0.1", ngx.var.server_port)
+
+            local res, err = httpc:request{
+                path = "/b",
+                headers = {
+                    user_agent = "test_user_agent",
+                },
+            }
+
+            ngx.status = res.status
+            ngx.say(res:read_body())
+            
+            httpc:close()
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say(ngx.req.get_headers()["User-Agent"])
+        ';
+    }
+--- request
+GET /a
+--- response_body
+test_user_agent
+--- no_error_log
+[error]
+[warn]
