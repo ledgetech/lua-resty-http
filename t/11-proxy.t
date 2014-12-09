@@ -89,7 +89,7 @@ X-Test: foo
 [warn]
 
 
-=== TEST 3: Proxy multiple headers (Set-Cookie handled differently to others)
+=== TEST 3: Proxy multiple headers 
 --- http_config eval: $::HttpConfig
 --- config
     location = /a_prx {
@@ -106,7 +106,6 @@ X-Test: foo
         content_by_lua '
             ngx.status = 200
             ngx.header["Set-Cookie"] = { "cookie1", "cookie2" }
-            ngx.header["X-Foo"] = { "foo", "bar" }
             ngx.say("OK")
         ';
     }
@@ -114,7 +113,7 @@ X-Test: foo
 GET /a_prx
 --- response_body
 OK
---- raw_response_headers_like: .*Set-Cookie: cookie1\r\nSet-Cookie: cookie2\r\n.*X-Foo: foo, bar\r\n
+--- raw_response_headers_like: .*Set-Cookie: cookie1\r\nSet-Cookie: cookie2\r\n
 --- error_code: 200
 --- no_error_log
 [error]
