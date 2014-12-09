@@ -1,3 +1,5 @@
+local http_headers = require "resty.http_headers"
+
 local ngx_socket_tcp = ngx.socket.tcp
 local ngx_req = ngx.req
 local ngx_req_socket = ngx_req.socket
@@ -255,34 +257,9 @@ local function _receive_status(sock)
 end
 
 
--- Metatable for header field case insensitivity. We use a proxy table, so that when case is used
--- consistently the metatable lookup is not required. On a lookup "miss", we try a key in the
--- "normalised" table.
-local headers_mt = {
-    normalised = {},
-}
-
-headers_mt.__index = function(t, k)
-    k = str_gsub(str_lower(k), "-", "_")
-    if headers_mt.normalised[k] then
-        return rawget(t, headers_mt.normalised[k])
-    end
-end
-
-headers_mt.__newindex = function(t, k, v)
-    local k_low = str_gsub(str_lower(k), "-", "_")
-    if not headers_mt.normalised[k_low] then
-        headers_mt.normalised[k_low] = k
-        rawset(t, k, v)
-    else
-        rawset(t, headers_mt.normalised[k_low], v)
-    end
-end
-
 
 local function _receive_headers(sock)
-    local headers = {}
-    setmetatable(headers, headers_mt)
+    local headers = http_headers.new()
 
     repeat
         local line, err = sock:receive("*l")
