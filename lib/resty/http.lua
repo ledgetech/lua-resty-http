@@ -498,7 +498,16 @@ function _M.send_request(self, params)
 
     local sock = self.sock
     local body = params.body
-    local headers = params.headers or {}
+    local headers = http_headers.new()
+
+    local params_headers = params.headers
+    if params_headers then
+        -- We assign one by one so that the metatable can handle case insensitivity
+        -- for us. You can blame the spec for this inefficiency.
+        for k,v in pairs(params_headers) do
+            headers[k] = v
+        end
+    end
     
     -- Ensure minimal headers are set
     if type(body) == 'string' and not headers["Content-Length"] then
