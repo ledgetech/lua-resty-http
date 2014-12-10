@@ -107,6 +107,7 @@ bar
                 path = "/b",
                 headers = {
                     ["uSeR-AgENT"] = "test_user_agent",
+                    x_foo = "bar",
                 },
             }
 
@@ -119,12 +120,14 @@ bar
     location = /b {
         content_by_lua '
             ngx.say(ngx.req.get_headers()["User-Agent"])
+            ngx.say(ngx.req.get_headers()["X-Foo"])
         ';
     }
 --- request
 GET /a
 --- response_body
 test_user_agent
+bar
 --- no_error_log
 [error]
 [warn]
