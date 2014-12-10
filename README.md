@@ -11,10 +11,12 @@ Ready for testing. Probably production ready in most cases, though not yet prove
 * HTTP 1.0 and 1.1
 * Streaming interface to reading bodies using coroutines, for predictable memory usage in Lua land.
 * Alternative simple interface for singleshot requests without manual connection step.
+* Headers treated case insensitively.
 * Chunked transfer encoding.
 * Keepalive.
 * Pipelining.
 * Trailers.
+
 
 # API
 
@@ -219,7 +221,7 @@ The `params` table accepts the following fields:
 When the request is successful, `res` will contain the following fields:
 
 * `status` The status code.
-* `headers` A table of headers.
+* `headers` A table of headers. Multiple headers with the same field name will be presented as a table of values.
 * `has_body` A boolean flag indicating if there is a body to be read. 
 * `body_reader` An iterator function for reading the body in a streaming fashion.
 * `read_body` A method to read the entire body into a string.
