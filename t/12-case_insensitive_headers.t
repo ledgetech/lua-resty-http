@@ -20,7 +20,43 @@ no_long_string();
 run_tests();
 
 __DATA__
-=== TEST 1: Test headers can be accessed in all cases
+=== TEST 1: Test header normalisation
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http_headers = require "resty.http_headers"
+
+            local headers = http_headers.new()
+
+            headers.x_a_header = "a"
+            headers["x-b-header"] = "b"
+            headers["X-C-Header"] = "c"
+            headers["X_d-HEAder"] = "d"
+
+            ngx.say(headers["X-A-Header"])
+            ngx.say(headers.x_b_header)
+            
+            for k,v in pairs(headers) do
+                ngx.say(k, ": ", v)
+            end
+        ';
+    }
+--- request
+GET /a
+--- response_body
+a
+b
+x-b-header: b
+x-a-header: a
+X-d-HEAder: d
+X-C-Header: c
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 2: Test headers can be accessed in all cases
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -58,7 +94,7 @@ bar
 [warn]
 
 
-=== TEST 2: Test request headers are normalised
+=== TEST 3: Test request headers are normalised
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -70,12 +106,12 @@ bar
             local res, err = httpc:request{
                 path = "/b",
                 headers = {
-                    user_agent = "test_user_agent",
+                    ["uSeR-AgENT"] = "test_user_agent",
                 },
             }
 
             ngx.status = res.status
-            ngx.say(res:read_body())
+            ngx.print(res:read_body())
             
             httpc:close()
         ';
