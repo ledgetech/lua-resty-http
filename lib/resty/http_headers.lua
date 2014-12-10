@@ -29,16 +29,30 @@ function _M.new(self)
             return matched
         else
             local k_normalised = str_lower(k_hyphened)
-            return rawget(mt.normalised, k_normalised)
+            return rawget(t, mt.normalised[k_normalised])
         end
     end
 
 
+    -- First check the normalised table. If there's no match (first time) add an entry for 
+    -- our current case in the normalised table. This is to preserve the human (prettier) case
+    -- instead of outputting lowercased header names.
+    --
+    -- If there's a match, we're being updated, just with a different case for the key. We use
+    -- the normalised table to give us the original key, and perorm a rawset().
     mt.__newindex = function(t, k, v)
-        local k_hyphened = str_gsub(k, "_", "-")
-        local k_normalised = str_lower(k_hyphened)
-        rawset(mt.normalised, k_normalised, v)
-        rawset(t, k_hyphened, v)
+        -- we support underscore syntax, so always hyphenate.
+        local k_hyphened = str_gsub(k, "_", "-") 
+
+        -- lowercase hyphenated is "normalised"
+        local k_normalised = str_lower(k_hyphened) 
+
+        if not mt.normalised[k_normalised] then
+            mt.normalised[k_normalised] = k_hyphened
+            rawset(t, k_hyphened, v)
+        else
+            rawset(t, mt.normalised[k_normalised], v)
+        end
     end
 
     return setmetatable({}, mt)

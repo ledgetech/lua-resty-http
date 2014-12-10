@@ -130,4 +130,31 @@ test_user_agent
 bar
 --- no_error_log
 [error]
+
+
+=== TEST 4: Test that headers remain unique
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http_headers = require "resty.http_headers"
+
+            local headers = http_headers.new()
+
+            headers["x-a-header"] = "a"
+            headers["X-A-HEAder"] = "b"
+
+            for k,v in pairs(headers) do
+            ngx.log(ngx.DEBUG, k, ": ", v)
+                ngx.header[k] = v
+            end
+        ';
+    }
+--- request
+GET /a
+--- response_headers
+x-a-header: b
+--- no_error_log
+[error]
+[warn]
 [warn]
