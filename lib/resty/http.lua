@@ -573,7 +573,7 @@ function _M.read_response(self, params)
 
 
     local res_headers, err = _receive_headers(sock)
-    if not res_headers then 
+    if not res_headers then
         return nil, err
     end
 
@@ -726,19 +726,21 @@ function _M.request_uri(self, uri, params)
 end
 
 
-function _M.get_client_body_reader(self, chunksize)
+function _M.get_client_body_reader(self, chunksize, sock)
     local chunksize = chunksize or 65536
-    local ok, sock, err = pcall(ngx_req_socket)
-
-    if not ok then
-        return nil, sock -- pcall err
-    end
-
     if not sock then
-        if err == "no body" then
-            return nil
-        else
-            return nil, err
+        local ok, sock, err = pcall(ngx_req_socket)
+
+        if not ok then
+            return nil, sock -- pcall err
+        end
+
+        if not sock then
+            if err == "no body" then
+                return nil
+            else
+                return nil, err
+            end
         end
     end
 
