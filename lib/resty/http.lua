@@ -729,7 +729,8 @@ end
 function _M.get_client_body_reader(self, chunksize, sock)
     local chunksize = chunksize or 65536
     if not sock then
-        local ok, sock, err = pcall(ngx_req_socket)
+        local ok, err
+        ok, sock, err = pcall(ngx_req_socket)
 
         if not ok then
             return nil, sock -- pcall err
