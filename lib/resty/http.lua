@@ -267,7 +267,7 @@ local function _receive_headers(sock)
             return nil, err
         end
 
-        for key, val in str_gmatch(line, "([%w%-]+)%s*:%s*(.+)") do
+        for key, val in str_gmatch(line, "([%w%-_]+)%s*:%s*(.+)") do
             if headers[key] then
                 if type(headers[key]) ~= "table" then
                     headers[key] = { headers[key] }
