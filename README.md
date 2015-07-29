@@ -362,9 +362,12 @@ This is a convenience function allowing one to more easily use the generic inter
 
 ## get_client_body_reader
 
-`syntax: reader, err = httpc:get_client_body_reader()`
+`syntax: reader, err = httpc:get_client_body_reader(chunksize?, sock?)`
 
-Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. For example:
+Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. You may also specify an optional default chunksize (default is `65536`), or an already established socket in
+place of the client request.
+
+Example:
 
 ```lua
 local req_reader = httpc:get_client_body_reader()
@@ -392,6 +395,8 @@ local res, err = httpc:request{
    body = client_body_reader,
 }
 ```
+
+If `sock` is specified, 
 
 # Author
 
