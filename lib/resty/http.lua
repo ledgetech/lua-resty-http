@@ -68,6 +68,7 @@ end
 local _M = {
     _VERSION = '0.05',
 }
+_M._USER_AGENT = "lua-resty-http/" .. _M._VERSION .. " (Lua) ngx_lua/" .. ngx.config.ngx_lua_version
 
 local mt = { __index = _M }
 
@@ -76,8 +77,6 @@ local HTTP = {
     [1.0] = " HTTP/1.0\r\n",
     [1.1] = " HTTP/1.1\r\n",
 }
-
-local USER_AGENT = "Resty/HTTP " .. _M._VERSION .. " (Lua)"
 
 local DEFAULT_PARAMS = {
     method = "GET",
@@ -517,7 +516,7 @@ function _M.send_request(self, params)
         headers["Host"] = self.host
     end
     if not headers["User-Agent"] then
-        headers["User-Agent"] = USER_AGENT
+        headers["User-Agent"] = _M._USER_AGENT
     end
     if params.version == 1.0 and not headers["Connection"] then
         headers["Connection"] = "Keep-Alive"
