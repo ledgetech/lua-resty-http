@@ -36,7 +36,7 @@ local HOP_BY_HOP_HEADERS = {
     ["trailers"]            = true,
     ["transfer-encoding"]   = true,
     ["upgrade"]             = true,
-    ["content-length"]      = true, -- Not strictly hop-by-hop, but Nginx will deal 
+    ["content-length"]      = true, -- Not strictly hop-by-hop, but Nginx will deal
                                     -- with this (may send chunked for example).
 }
 
@@ -49,7 +49,7 @@ local HOP_BY_HOP_HEADERS = {
 --     ...
 --   end
 -- until not chunk
-local co_wrap = function(func) 
+local co_wrap = function(func)
     local co = co_create(func)
     if not co then
         return nil, "could not create coroutine"
@@ -137,7 +137,7 @@ function _M.set_keepalive(self, ...)
         return sock:setkeepalive(...)
     else
         -- The server said we must close the connection, so we cannot setkeepalive.
-        -- If close() succeeds we return 2 instead of 1, to differentiate between 
+        -- If close() succeeds we return 2 instead of 1, to differentiate between
         -- a normal setkeepalive() failure and an intentional close().
         local res, err = sock:close()
         if res then
@@ -178,7 +178,7 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]], 
+    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]],
         "jo")
 
     if not m then
@@ -262,7 +262,7 @@ local function _receive_headers(sock)
 
     repeat
         local line, err = sock:receive("*l")
-        if not line then 
+        if not line then
             return nil, err
         end
 
@@ -288,7 +288,7 @@ local function _chunked_body_reader(sock, default_chunk_size)
         local remaining = 0
         local length
 
-        repeat 
+        repeat
             -- If we still have data on this chunk
             if max_chunk_size and remaining > 0 then
 
@@ -301,7 +301,7 @@ local function _chunked_body_reader(sock, default_chunk_size)
                     length = remaining
                     remaining = 0
                 end
-            else -- This is a fresh chunk 
+            else -- This is a fresh chunk
 
                 -- Receive the chunk size
                 local str, err = sock:receive("*l")
@@ -314,7 +314,7 @@ local function _chunked_body_reader(sock, default_chunk_size)
                 if not length then
                     co_yield(nil, "unable to read chunksize")
                 end
-            
+
                 if max_chunk_size and length > max_chunk_size then
                     -- Consume up to max_chunk_size
                     remaining = length - max_chunk_size
@@ -327,7 +327,7 @@ local function _chunked_body_reader(sock, default_chunk_size)
                 if not str then
                     co_yield(nil, err)
                 end
-                
+
                 max_chunk_size = co_yield(str) or default_chunk_size
 
                 -- If we're finished with this chunk, read the carriage return.
@@ -403,7 +403,7 @@ end
 local function _read_body(res)
     local reader = res.body_reader
 
-    if not reader then 
+    if not reader then
         -- Most likely HEAD or 304 etc.
         return nil, "no body to be read"
     end
@@ -507,7 +507,7 @@ function _M.send_request(self, params)
             headers[k] = v
         end
     end
-    
+
     -- Ensure minimal headers are set
     if type(body) == 'string' and not headers["Content-Length"] then
         headers["Content-Length"] = #body
@@ -612,9 +612,9 @@ function _M.read_response(self, params)
     if err then
         return nil, err
     else
-        return { 
-            status = status, 
-            headers = res_headers, 
+        return {
+            status = status,
+            headers = res_headers,
             has_body = has_body,
             body_reader = body_reader,
             read_body = _read_body,
@@ -649,7 +649,7 @@ function _M.request_pipeline(self, requests)
 
     local responses = {}
     for i, params in ipairs(requests) do
-        responses[i] = setmetatable({ 
+        responses[i] = setmetatable({
             params = params,
             response_read = false,
         }, {
@@ -713,7 +713,7 @@ function _M.request_uri(self, uri, params)
     if not body then
         return nil, err
     end
-    
+
     res.body = body
 
     local ok, err = self:set_keepalive()
@@ -775,7 +775,7 @@ function _M.proxy_response(self, response, chunksize)
     end
 
     ngx.status = response.status
-    
+
     -- Filter out hop-by-hop headeres
     for k,v in pairs(response.headers) do
         if not HOP_BY_HOP_HEADERS[str_lower(k)] then
