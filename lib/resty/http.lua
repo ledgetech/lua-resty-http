@@ -354,10 +354,16 @@ local function _body_reader(sock, content_length, default_chunk_size)
             repeat
                 local str, err, partial = sock:receive(max_chunk_size)
                 if not str and err == "closed" then
-                    max_chunk_size = co_yield(partial, err) or default_chunk_size
+                    max_chunk_size = tonumber(co_yield(partial, err) or default_chunk_size)
                 end
 
-                max_chunk_size = co_yield(str) or default_chunk_size
+                max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
+                if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
+
+                if not max_chunk_size then
+                    ngx_log(ngx_ERR, "Buffer size not specified, bailing")
+                    break
+                end
             until not str
 
         elseif not content_length then
@@ -382,11 +388,17 @@ local function _body_reader(sock, content_length, default_chunk_size)
                 if length > 0 then
                     local str, err = sock:receive(length)
                     if not str then
-                        max_chunk_size = co_yield(nil, err) or default_chunk_size
+                        max_chunk_size = tonumber(co_yield(nil, err) or default_chunk_size)
                     end
                     received = received + length
 
-                    max_chunk_size = co_yield(str) or default_chunk_size
+                    max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
+                    if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
+
+                    if not max_chunk_size then
+                        ngx_log(ngx_ERR, "Buffer size not specified, bailing")
+                        break
+                    end
                 end
 
             until length == 0
