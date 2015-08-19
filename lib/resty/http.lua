@@ -15,6 +15,7 @@ local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
+local ngx_re_gsub = ngx.re.gsub
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
@@ -773,7 +774,7 @@ end
 function _M.proxy_request(self, chunksize)
     return self:request{
         method = ngx_req_get_method(),
-        path = ngx_var.uri .. ngx_var.is_args .. (ngx_var.query_string or ""),
+        path = ngx_re_gsub(ngx_var.uri, "\\s", "%20", "jo") .. ngx_var.is_args .. (ngx_var.query_string or ""),
         body = self:get_client_body_reader(chunksize),
         headers = ngx_req_get_headers(),
     }
