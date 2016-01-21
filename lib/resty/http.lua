@@ -196,7 +196,7 @@ function _M.parse_uri(self, uri)
                 m[3] = 80
             end
         end
-        if not m[4] then m[4] = "/" end
+        if not m[4] or "" == m[4] then m[4] = "/" end
         return m, nil
     end
 end
