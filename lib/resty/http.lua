@@ -122,6 +122,7 @@ function _M.connect(self, ...)
     end
 
     self.host = select(1, ...)
+    self.port = select(2, ...)
     self.keepalive = true
 
     return sock:connect(...)
@@ -526,7 +527,7 @@ function _M.send_request(self, params)
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
-        headers["Host"] = self.host
+        headers["Host"] = self.host..":"..self.port
     end
     if not headers["User-Agent"] then
         headers["User-Agent"] = _M._USER_AGENT
