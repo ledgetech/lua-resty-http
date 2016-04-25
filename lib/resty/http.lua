@@ -122,6 +122,7 @@ function _M.connect(self, ...)
     end
 
     self.host = select(1, ...)
+    self.port = select(2, ...)
     self.keepalive = true
 
     return sock:connect(...)
@@ -195,6 +196,9 @@ function _M.parse_uri(self, uri)
             else
                 m[3] = 80
             end
+        else
+          -- force the port to be a number
+          m[3] = tonumber(m[3])
         end
         if not m[4] or "" == m[4] then m[4] = "/" end
         return m, nil
@@ -526,7 +530,11 @@ function _M.send_request(self, params)
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
-        headers["Host"] = self.host
+        if self.port ~= 80 and self.port ~= 443 then
+          headers["Host"] = self.host..":"..self.port
+        else
+          headers["Host"] = self.host
+        end
     end
     if not headers["User-Agent"] then
         headers["User-Agent"] = _M._USER_AGENT
