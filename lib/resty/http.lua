@@ -111,6 +111,8 @@ function _M.ssl_handshake(self, ...)
         return nil, "not initialized"
     end
 
+    self.ssl = true
+
     return sock:sslhandshake(...)
 end
 
@@ -122,6 +124,13 @@ function _M.connect(self, ...)
     end
 
     self.host = select(1, ...)
+    self.port = select(2, ...)
+
+    -- If port is not a number, this is likely a unix domain socket connection.
+    if type(self.port) ~= "number" then
+        self.port = nil
+    end
+
     self.keepalive = true
 
     return sock:connect(...)
@@ -189,7 +198,9 @@ function _M.parse_uri(self, uri)
 
         return nil, "bad uri"
     else
-        if not m[3] then
+        if m[3] then
+            m[3] = tonumber(m[3])
+        else
             if m[1] == "https" then
                 m[3] = 443
             else
@@ -526,7 +537,19 @@ function _M.send_request(self, params)
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
-        headers["Host"] = self.host
+        -- If we have a port (i.e. not connected to a unix domain socket), and this
+        -- port is non-standard, append it to the Host heaer.
+        if self.port then
+            if self.ssl and self.port ~= 443 then
+                headers["Host"] = self.host .. ":" .. self.port
+            elseif not self.ssl and self.port ~= 80 then
+                headers["Host"] = self.host .. ":" .. self.port
+            else
+                headers["Host"] = self.host
+            end
+        else
+            headers["Host"] = self.host
+        end
     end
     if not headers["User-Agent"] then
         headers["User-Agent"] = _M._USER_AGENT
