@@ -222,6 +222,7 @@ The `params` table accepts the following fields:
 When the request is successful, `res` will contain the following fields:
 
 * `status` The status code.
+* `reason` The status reason phrase.
 * `headers` A table of headers. Multiple headers with the same field name will be presented as a table of values.
 * `has_body` A boolean flag indicating if there is a body to be read. 
 * `body_reader` An iterator function for reading the body in a streaming fashion.
