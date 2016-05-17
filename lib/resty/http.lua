@@ -261,10 +261,10 @@ end
 local function _receive_status(sock)
     local line, err = sock:receive("*l")
     if not line then
-        return nil, nil, err
+        return nil, nil, nil, err
     end
 
-    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8))
+    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8)), str_sub(line, 14)
 end
 
 
@@ -498,7 +498,7 @@ end
 
 
 local function _handle_continue(sock, body)
-    local status, version, err = _receive_status(sock)
+    local status, version, reason, err = _receive_status(sock)
     if not status then
         return nil, err
     end
@@ -600,7 +600,7 @@ function _M.read_response(self, params)
 
     -- Just read the status as normal.
     if not status then
-        status, version, err = _receive_status(sock)
+        status, version, reason, err = _receive_status(sock)
         if not status then
             return nil, err
         end
@@ -650,6 +650,7 @@ function _M.read_response(self, params)
     else
         return {
             status = status,
+            reason = reason,
             headers = res_headers,
             has_body = has_body,
             body_reader = body_reader,
