@@ -585,7 +585,7 @@ end
 function _M.read_response(self, params)
     local sock = self.sock
 
-    local status, version, err
+    local status, version, reason, err
 
     -- If we expect: continue, we need to handle this, sending the body if allowed.
     -- If we don't get 100 back, then status is the actual status.
