@@ -615,11 +615,16 @@ function _M.read_response(self, params)
         return nil, err
     end
 
-    -- Determine if we should keepalive or not.
+    -- keepalive is true by default. Determine if this is correct or not.
     local ok, connection = pcall(str_lower, res_headers["Connection"])
     if ok then
         if  (version == 1.1 and connection == "close") or
             (version == 1.0 and connection ~= "keep-alive") then
+            self.keepalive = false
+        end
+    else
+        -- no connection header
+        if version == 1.0 then
             self.keepalive = false
         end
     end
