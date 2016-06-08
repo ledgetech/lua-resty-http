@@ -128,3 +128,34 @@ GET /lua
 [error]
 --- error_log
 Host: 127.0.0.1:8081
+
+
+=== TEST 5: No host header on a unix domain socket returns a useful error.
+--- http_config eval: $::HttpConfig
+--- config
+    location /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+
+            local res, err = httpc:connect("unix:test.sock")
+            if not res then
+                ngx.log(ngx.ERR, err)
+            end
+
+            local res, err = httpc:request({ path = "/" })
+            if not res then
+                ngx.say(err)
+            else
+                ngx.say(res:read_body())
+            end
+        }
+    }
+--- tcp_listen: test.sock
+--- tcp_reply: OK
+--- request
+GET /a
+--- no_error_log
+[error]
+--- response_body
+Unable to generate a useful Host header for a unix domain socket. Please provide one.

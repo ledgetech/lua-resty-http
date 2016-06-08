@@ -537,6 +537,9 @@ function _M.send_request(self, params)
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
+        if (str_sub(self.host, 1, 5) == "unix:") then
+            return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
+        end
         -- If we have a port (i.e. not connected to a unix domain socket), and this
         -- port is non-standard, append it to the Host heaer.
         if self.port then
