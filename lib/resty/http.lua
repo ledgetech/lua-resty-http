@@ -521,6 +521,7 @@ function _M.send_request(self, params)
 
     local sock = self.sock
     local body = params.body
+    local disable_auto_headers = params.disable_auto_headers
     local headers = http_headers.new()
 
     local params_headers = params.headers
@@ -533,32 +534,34 @@ function _M.send_request(self, params)
     end
 
     -- Ensure minimal headers are set
-    if type(body) == 'string' and headers["Content-Length"] == nil then
-        headers["Content-Length"] = #body
-    end
-    if not headers["Host"] then
-        if (str_sub(self.host, 1, 5) == "unix:") then
-            return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
+    if not disable_auto_headers then
+        if type(body) == 'string' and not headers["Content-Length"] then
+            headers["Content-Length"] = #body
         end
-        -- If we have a port (i.e. not connected to a unix domain socket), and this
-        -- port is non-standard, append it to the Host heaer.
-        if self.port then
-            if self.ssl and self.port ~= 443 then
-                headers["Host"] = self.host .. ":" .. self.port
-            elseif not self.ssl and self.port ~= 80 then
-                headers["Host"] = self.host .. ":" .. self.port
+        if not headers["Host"] then
+            if (str_sub(self.host, 1, 5) == "unix:") then
+                return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
+            end
+            -- If we have a port (i.e. not connected to a unix domain socket), and this
+            -- port is non-standard, append it to the Host heaer.
+            if self.port then
+                if self.ssl and self.port ~= 443 then
+                    headers["Host"] = self.host .. ":" .. self.port
+                elseif not self.ssl and self.port ~= 80 then
+                    headers["Host"] = self.host .. ":" .. self.port
+                else
+                    headers["Host"] = self.host
+                end
             else
                 headers["Host"] = self.host
             end
-        else
-            headers["Host"] = self.host
         end
-    end
-    if not headers["User-Agent"] then
-        headers["User-Agent"] = _M._USER_AGENT
-    end
-    if params.version == 1.0 and not headers["Connection"] then
-        headers["Connection"] = "Keep-Alive"
+        if not headers["User-Agent"] then
+            headers["User-Agent"] = _M._USER_AGENT
+        end
+        if params.version == 1.0 and not headers["Connection"] then
+            headers["Connection"] = "Keep-Alive"
+        end
     end
 
     params.headers = headers
