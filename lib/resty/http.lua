@@ -533,7 +533,7 @@ function _M.send_request(self, params)
     end
 
     -- Ensure minimal headers are set
-    if type(body) == 'string' and not headers["Content-Length"] then
+    if type(body) == 'string' and headers["Content-Length"] == nil then
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
