@@ -1,8 +1,8 @@
 package = "lua-resty-http"
-version = "0.08-0"
+version = "0.09-0"
 source = {
    url = "git://github.com/pintsized/lua-resty-http",
-   tag = "v0.08"
+   tag = "v0.09"
 }
 description = {
    summary = "Lua HTTP client cosocket driver for OpenResty / ngx_lua.",
