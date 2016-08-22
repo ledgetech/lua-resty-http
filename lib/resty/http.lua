@@ -500,14 +500,14 @@ end
 local function _handle_continue(sock, body)
     local status, version, reason, err = _receive_status(sock)
     if not status then
-        return nil, err
+        return nil, nil, err
     end
 
     -- Only send body if we receive a 100 Continue
     if status == 100 then
         local ok, err = sock:receive("*l") -- Read carriage return
         if not ok then
-            return nil, err
+            return nil, nil, err
         end
         _send_body(sock, body)
     end
