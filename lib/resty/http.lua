@@ -188,15 +188,15 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]],
+    local m, err = ngx_re_match(uri, [[^(http[s]?)://([^:/]+)(?::(\d+))?(.*)]],
         "jo")
 
     if not m then
         if err then
-            return nil, "failed to match the uri: " .. err
+            return nil, "failed to match the uri: " .. uri .. ", " .. err
         end
 
-        return nil, "bad uri"
+        return nil, "bad uri: " .. uri
     else
         if m[3] then
             m[3] = tonumber(m[3])
