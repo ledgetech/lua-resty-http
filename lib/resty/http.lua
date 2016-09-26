@@ -21,10 +21,21 @@ local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local ngx_NOTICE = ngx.NOTICE
 local ngx_var = ngx.var
+local ngx_print = ngx.print
 local co_yield = coroutine.yield
 local co_create = coroutine.create
 local co_status = coroutine.status
 local co_resume = coroutine.resume
+local setmetatable = setmetatable
+local tonumber = tonumber
+local tostring = tostring
+local unpack = unpack
+local rawget = rawget
+local select = select
+local ipairs = ipairs
+local pairs = pairs
+local pcall = pcall
+local type = type
 
 
 -- http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13.5.1
@@ -630,7 +641,7 @@ function _M.read_response(self, params)
     end
 
     local body_reader = _no_body_reader
-    local trailer_reader, err = nil, nil
+    local trailer_reader, err
     local has_body = false
 
     -- Receive the body_reader
@@ -837,7 +848,7 @@ function _M.proxy_response(self, response, chunksize)
         end
 
         if chunk then
-            local res, err = ngx.print(chunk)
+            local res, err = ngx_print(chunk)
             if not res then
                 ngx_log(ngx_ERR, err)
                 break
