@@ -16,6 +16,7 @@ local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
 local ngx_re_gsub = ngx.re.gsub
+local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
@@ -288,18 +289,21 @@ local function _receive_headers(sock)
         if not line then
             return nil, err
         end
-
-        for key, val in str_gmatch(line, "([^:%s]+):%s*(.+)") do
-            if headers[key] then
-                if type(headers[key]) ~= "table" then
-                    headers[key] = { headers[key] }
-                end
-                tbl_insert(headers[key], tostring(val))
-            else
-                headers[key] = tostring(val)
-            end
+        local m, err = ngx_re_match(line, "([^:\\s]+):\\s*(.+)", "jo")
+        if not m then
+            break
         end
-    until str_find(line, "^%s*$")
+        local key = m[1]
+        local val = m[2]
+        if headers[key] then
+            if type(headers[key]) ~= "table" then
+                headers[key] = { headers[key] }
+            end
+            tbl_insert(headers[key], tostring(val))
+        else
+            headers[key] = tostring(val)
+        end
+    until ngx_re_find(line, "^\\s*$")
 
     return headers, nil
 end

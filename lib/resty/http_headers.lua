@@ -1,7 +1,7 @@
 local   rawget, rawset, setmetatable =
         rawget, rawset, setmetatable
 
-local str_gsub = string.gsub
+local ngx_re_gsub = ngx.re.gsub
 local str_lower = string.lower
 
 
@@ -27,7 +27,7 @@ function _M.new(self)
         if matched then
             return matched
         else
-            local k_hyphened = str_gsub(k, "_", "-")
+            local k_hyphened = ngx_re_gsub(k, "_", "-")
             local k_normalised = str_lower(k_hyphened)
             return rawget(t, mt.normalised[k_normalised])
         end
@@ -42,7 +42,7 @@ function _M.new(self)
     -- the normalised table to give us the original key, and perorm a rawset().
     mt.__newindex = function(t, k, v)
         -- we support underscore syntax, so always hyphenate.
-        local k_hyphened = str_gsub(k, "_", "-")
+        local k_hyphened = ngx_re_gsub(k, "_", "-")
 
         -- lowercase hyphenated is "normalised"
         local k_normalised = str_lower(k_hyphened)
