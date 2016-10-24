@@ -280,7 +280,6 @@ local function _receive_status(sock)
 end
 
 
-
 local function _receive_headers(sock)
     local headers = http_headers.new()
 
