@@ -1,13 +1,36 @@
 local   rawget, rawset, setmetatable =
         rawget, rawset, setmetatable
 
-local ngx_re_gsub = ngx.re.gsub
-local str_lower = string.lower
+local str_find, str_lower, str_sub =
+      string.find, string.lower, string.sub
 
 
 local _M = {
     _VERSION = '0.01',
 }
+
+
+local function hyphenate(k)
+    local k_hyphened = ""
+    local match = false
+    local prev_pos = 0
+    repeat
+        local pos = str_find(k, "_", prev_pos, true)
+        if pos then
+            match = true
+            k_hyphened =  k_hyphened .. str_sub(k, prev_pos, pos-1) .. "-"
+        elseif match == false then
+            -- Didn't find an underscore and first check
+            return k
+        else
+            -- No more underscores, append the rest of the key
+            k_hyphened = k_hyphened .. str_sub(k, prev_pos)
+            break
+        end
+        prev_pos = pos+1
+    until not pos
+    return k_hyphened
+end
 
 
 -- Returns an empty headers table with internalised case normalisation.
@@ -17,7 +40,7 @@ local _M = {
 -- headers["content-length"]
 -- headers["Content-Length"]
 function _M.new(self)
-    local mt = { 
+    local mt = {
         normalised = {},
     }
 
@@ -27,7 +50,7 @@ function _M.new(self)
         if matched then
             return matched
         else
-            local k_hyphened = ngx_re_gsub(k, "_", "-")
+            local k_hyphened = hyphenate(k)
             local k_normalised = str_lower(k_hyphened)
             return rawget(t, mt.normalised[k_normalised])
         end
@@ -42,7 +65,7 @@ function _M.new(self)
     -- the normalised table to give us the original key, and perorm a rawset().
     mt.__newindex = function(t, k, v)
         -- we support underscore syntax, so always hyphenate.
-        local k_hyphened = ngx_re_gsub(k, "_", "-")
+        local k_hyphened = hyphenate(k)
 
         -- lowercase hyphenated is "normalised"
         local k_normalised = str_lower(k_hyphened)
