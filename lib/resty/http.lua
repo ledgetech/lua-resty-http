@@ -302,7 +302,7 @@ local function _receive_headers(sock)
         else
             headers[key] = tostring(val)
         end
-    until ngx_re_find(line, "^\\s*$")
+    until ngx_re_find(line, "^\\s*$", "jo")
 
     return headers, nil
 end
