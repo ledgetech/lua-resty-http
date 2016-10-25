@@ -10,7 +10,6 @@ local str_lower = string.lower
 local str_upper = string.upper
 local str_find = string.find
 local str_sub = string.sub
-local str_gsub = string.gsub
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
@@ -19,7 +18,6 @@ local ngx_re_gsub = ngx.re.gsub
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
-local ngx_NOTICE = ngx.NOTICE
 local ngx_var = ngx.var
 local co_yield = coroutine.yield
 local co_create = coroutine.create
@@ -285,9 +283,9 @@ end
 
 local function _chunked_body_reader(sock, default_chunk_size)
     return co_wrap(function(max_chunk_size)
-        local max_chunk_size = max_chunk_size or default_chunk_size
         local remaining = 0
         local length
+        max_chunk_size = max_chunk_size or default_chunk_size
 
         repeat
             -- If we still have data on this chunk
@@ -353,10 +351,7 @@ local function _body_reader(sock, content_length, default_chunk_size)
             -- We have no length, but wish to stream.
             -- HTTP 1.0 with no length will close connection, so read chunks to the end.
             repeat
-                local str, err, partial = sock:receive(max_chunk_size)
-                if not str and err == "closed" then
-                    max_chunk_size = tonumber(co_yield(partial, err) or default_chunk_size)
-                end
+                local str = sock:receive(max_chunk_size)
 
                 max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
                 if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
@@ -387,10 +382,7 @@ local function _body_reader(sock, content_length, default_chunk_size)
                 end
 
                 if length > 0 then
-                    local str, err = sock:receive(length)
-                    if not str then
-                        max_chunk_size = tonumber(co_yield(nil, err) or default_chunk_size)
-                    end
+                    local str = sock:receive(length)
                     received = received + length
 
                     max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
@@ -465,7 +457,7 @@ local function _send_body(sock, body)
             local chunk, err, partial = body()
 
             if chunk then
-                local ok,err = sock:send(chunk)
+                local ok, err = sock:send(chunk)
 
                 if not ok then
                     return nil, err
@@ -649,7 +641,7 @@ end
 
 
 function _M.request_pipeline(self, requests)
-    for i, params in ipairs(requests) do
+    for _, params in ipairs(requests) do
         if params.headers and params.headers["Expect"] == "100-continue" then
             return nil, "Cannot pipeline request specifying Expect: 100-continue"
         end
@@ -739,7 +731,8 @@ end
 
 
 function _M.get_client_body_reader(self, chunksize, sock)
-    local chunksize = chunksize or 65536
+    chunksize = chunksize or 65536
+
     if not sock then
         local ok, err
         ok, sock, err = pcall(ngx_req_socket)
