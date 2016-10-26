@@ -21,10 +21,21 @@ local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local ngx_NOTICE = ngx.NOTICE
 local ngx_var = ngx.var
+local ngx_print = ngx.print
 local co_yield = coroutine.yield
 local co_create = coroutine.create
 local co_status = coroutine.status
 local co_resume = coroutine.resume
+local setmetatable = setmetatable
+local tonumber = tonumber
+local tostring = tostring
+local unpack = unpack
+local rawget = rawget
+local select = select
+local ipairs = ipairs
+local pairs = pairs
+local pcall = pcall
+local type = type
 
 
 -- http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13.5.1
@@ -67,7 +78,7 @@ end
 
 
 local _M = {
-    _VERSION = '0.06',
+    _VERSION = '0.09',
 }
 _M._USER_AGENT = "lua-resty-http/" .. _M._VERSION .. " (Lua) ngx_lua/" .. ngx.config.ngx_lua_version
 
@@ -111,6 +122,8 @@ function _M.ssl_handshake(self, ...)
         return nil, "not initialized"
     end
 
+    self.ssl = true
+
     return sock:sslhandshake(...)
 end
 
@@ -122,6 +135,13 @@ function _M.connect(self, ...)
     end
 
     self.host = select(1, ...)
+    self.port = select(2, ...)
+
+    -- If port is not a number, this is likely a unix domain socket connection.
+    if type(self.port) ~= "number" then
+        self.port = nil
+    end
+
     self.keepalive = true
 
     return sock:connect(...)
@@ -179,17 +199,19 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]*)://([^:/]+)(?::(\d+))?(.*)]],
+    local m, err = ngx_re_match(uri, [[^(http[s]?)://([^:/]+)(?::(\d+))?(.*)]],
         "jo")
 
     if not m then
         if err then
-            return nil, "failed to match the uri: " .. err
+            return nil, "failed to match the uri: " .. uri .. ", " .. err
         end
 
-        return nil, "bad uri"
+        return nil, "bad uri: " .. uri
     else
-        if not m[3] then
+        if m[3] then
+            m[3] = tonumber(m[3])
+        else
             if m[1] == "https" then
                 m[3] = 443
             else
@@ -250,10 +272,10 @@ end
 local function _receive_status(sock)
     local line, err = sock:receive("*l")
     if not line then
-        return nil, nil, err
+        return nil, nil, nil, err
     end
 
-    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8))
+    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8)), str_sub(line, 14)
 end
 
 
@@ -487,16 +509,16 @@ end
 
 
 local function _handle_continue(sock, body)
-    local status, version, err = _receive_status(sock)
+    local status, version, reason, err = _receive_status(sock)
     if not status then
-        return nil, err
+        return nil, nil, err
     end
 
     -- Only send body if we receive a 100 Continue
     if status == 100 then
         local ok, err = sock:receive("*l") -- Read carriage return
         if not ok then
-            return nil, err
+            return nil, nil, err
         end
         _send_body(sock, body)
     end
@@ -526,7 +548,22 @@ function _M.send_request(self, params)
         headers["Content-Length"] = #body
     end
     if not headers["Host"] then
-        headers["Host"] = self.host
+        if (str_sub(self.host, 1, 5) == "unix:") then
+            return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
+        end
+        -- If we have a port (i.e. not connected to a unix domain socket), and this
+        -- port is non-standard, append it to the Host heaer.
+        if self.port then
+            if self.ssl and self.port ~= 443 then
+                headers["Host"] = self.host .. ":" .. self.port
+            elseif not self.ssl and self.port ~= 80 then
+                headers["Host"] = self.host .. ":" .. self.port
+            else
+                headers["Host"] = self.host
+            end
+        else
+            headers["Host"] = self.host
+        end
     end
     if not headers["User-Agent"] then
         headers["User-Agent"] = _M._USER_AGENT
@@ -562,7 +599,7 @@ end
 function _M.read_response(self, params)
     local sock = self.sock
 
-    local status, version, err
+    local status, version, reason, err
 
     -- If we expect: continue, we need to handle this, sending the body if allowed.
     -- If we don't get 100 back, then status is the actual status.
@@ -577,7 +614,7 @@ function _M.read_response(self, params)
 
     -- Just read the status as normal.
     if not status then
-        status, version, err = _receive_status(sock)
+        status, version, reason, err = _receive_status(sock)
         if not status then
             return nil, err
         end
@@ -589,17 +626,22 @@ function _M.read_response(self, params)
         return nil, err
     end
 
-    -- Determine if we should keepalive or not.
+    -- keepalive is true by default. Determine if this is correct or not.
     local ok, connection = pcall(str_lower, res_headers["Connection"])
     if ok then
         if  (version == 1.1 and connection == "close") or
             (version == 1.0 and connection ~= "keep-alive") then
             self.keepalive = false
         end
+    else
+        -- no connection header
+        if version == 1.0 then
+            self.keepalive = false
+        end
     end
 
     local body_reader = _no_body_reader
-    local trailer_reader, err = nil, nil
+    local trailer_reader, err
     local has_body = false
 
     -- Receive the body_reader
@@ -627,6 +669,7 @@ function _M.read_response(self, params)
     else
         return {
             status = status,
+            reason = reason,
             headers = res_headers,
             has_body = has_body,
             body_reader = body_reader,
@@ -805,7 +848,11 @@ function _M.proxy_response(self, response, chunksize)
         end
 
         if chunk then
-            ngx.print(chunk)
+            local res, err = ngx_print(chunk)
+            if not res then
+                ngx_log(ngx_ERR, err)
+                break
+            end
         end
     until not chunk
 end
