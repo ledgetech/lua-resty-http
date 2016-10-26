@@ -507,7 +507,7 @@ end
 
 
 local function _handle_continue(sock, body)
-    local status, version, reason, err = _receive_status(sock)
+    local status, version, _, err = _receive_status(sock)
     if not status then
         return nil, nil, err
     end
