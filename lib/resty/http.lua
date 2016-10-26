@@ -367,13 +367,16 @@ end
 
 local function _body_reader(sock, content_length, default_chunk_size)
     return co_wrap(function(max_chunk_size)
-        local max_chunk_size = max_chunk_size or default_chunk_size
+        max_chunk_size = max_chunk_size or default_chunk_size
 
         if not content_length and max_chunk_size then
             -- We have no length, but wish to stream.
             -- HTTP 1.0 with no length will close connection, so read chunks to the end.
             repeat
-                local str = sock:receive(max_chunk_size)
+                local str, err, partial = sock:receive(max_chunk_size)
+                if not str and err == "closed" then
+                    co_yield(partial, err)
+                end
 
                 max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
                 if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
@@ -404,7 +407,10 @@ local function _body_reader(sock, content_length, default_chunk_size)
                 end
 
                 if length > 0 then
-                    local str = sock:receive(length)
+                    local str, err = sock:receive(length)
+                    if not str then
+                        co_yield(nil, err)
+                    end
                     received = received + length
 
                     max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
