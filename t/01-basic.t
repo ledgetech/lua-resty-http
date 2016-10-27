@@ -236,3 +236,39 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 8: Errors when not initialized
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+
+            local res, err = http:set_timeout(500)
+            if not res then ngx.say(err) end
+
+            local res, err = http:ssl_handshake()
+            if not res then ngx.say(err) end
+
+            local res, err = http:set_keepalive()
+            if not res then ngx.say(err) end
+
+            local res, err = http:get_reused_times()
+            if not res then ngx.say(err) end
+
+            local res, err = http:close()
+            if not res then ngx.say(err) end
+        ';
+    }
+--- request
+GET /a
+--- response_body
+not initialized
+not initialized
+not initialized
+not initialized
+not initialized
+--- no_error_log
+[error]
+[warn]
