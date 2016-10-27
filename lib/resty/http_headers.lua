@@ -14,11 +14,12 @@ local function hyphenate(k)
     local k_hyphened = ""
     local match = false
     local prev_pos = 0
+
     repeat
         local pos = str_find(k, "_", prev_pos, true)
         if pos then
             match = true
-            k_hyphened =  k_hyphened .. str_sub(k, prev_pos, pos-1) .. "-"
+            k_hyphened =  k_hyphened .. str_sub(k, prev_pos, pos - 1) .. "-"
         elseif match == false then
             -- Didn't find an underscore and first check
             return k
@@ -27,8 +28,9 @@ local function hyphenate(k)
             k_hyphened = k_hyphened .. str_sub(k, prev_pos)
             break
         end
-        prev_pos = pos+1
+        prev_pos = pos + 1
     until not pos
+
     return k_hyphened
 end
 
@@ -44,7 +46,6 @@ function _M.new(self)
         normalised = {},
     }
 
-
     mt.__index = function(t, k)
         local matched = rawget(t, k)
         if matched then
@@ -55,7 +56,6 @@ function _M.new(self)
             return rawget(t, mt.normalised[k_normalised])
         end
     end
-
 
     -- First check the normalised table. If there's no match (first time) add an entry for
     -- our current case in the normalised table. This is to preserve the human (prettier) case
