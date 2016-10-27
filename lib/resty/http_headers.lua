@@ -47,14 +47,9 @@ function _M.new(self)
     }
 
     mt.__index = function(t, k)
-        local matched = rawget(t, k)
-        if matched then
-            return matched
-        else
-            local k_hyphened = hyphenate(k)
-            local k_normalised = str_lower(k_hyphened)
-            return rawget(t, mt.normalised[k_normalised])
-        end
+        local k_hyphened = hyphenate(k)
+        local k_normalised = str_lower(k_hyphened)
+        return rawget(t, mt.normalised[k_normalised])
     end
 
     -- First check the normalised table. If there's no match (first time) add an entry for
