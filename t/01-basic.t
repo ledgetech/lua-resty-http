@@ -1,5 +1,3 @@
-# vim:set ft= ts=4 sw=4 et:
-
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
@@ -7,12 +5,20 @@ plan tests => repeat_each() * (blocks() * 4) + 1;
 
 my $pwd = cwd();
 
-our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
-    error_log logs/error.log debug;
-};
-
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
+$ENV{TEST_COVERAGE} ||= 0;
+
+our $HttpConfig = qq{
+    lua_package_path "$pwd/lib/?.lua;/usr/local/share/lua/5.1/?.lua;;";
+    error_log logs/error.log debug;
+
+    init_by_lua_block {
+        if $ENV{TEST_COVERAGE} == 1 then
+            jit.off()
+            require("luacov.runner").init()
+        end
+    }
+};
 
 no_long_string();
 #no_diff();
@@ -35,7 +41,7 @@ __DATA__
 
             ngx.status = res.status
             ngx.print(res:read_body())
-            
+
             httpc:close()
         ';
     }
@@ -67,7 +73,7 @@ OK
 
             ngx.status = res.status
             ngx.print(res:read_body())
-            
+
             httpc:close()
         ';
     }
@@ -91,7 +97,7 @@ OK
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b"
             }
@@ -99,7 +105,7 @@ OK
             ngx.status = res.status
             ngx.say(res.reason)
             ngx.print(res:read_body())
-            
+
             httpc:close()
         ';
     }
@@ -128,14 +134,14 @@ OK
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 path = "/b"
             }
 
             ngx.status = res.status
             ngx.say(res.headers["X-Test"])
-            
+
             httpc:close()
         ';
     }
@@ -162,7 +168,7 @@ x-value
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 query = {
                     a = 1,
@@ -178,7 +184,7 @@ x-value
             end
 
             ngx.print(res:read_body())
-            
+
             httpc:close()
         ';
     }
@@ -207,7 +213,7 @@ X-Header-B: 2
             local http = require "resty.http"
             local httpc = http.new()
             httpc:connect("127.0.0.1", ngx.var.server_port)
-            
+
             local res, err = httpc:request{
                 method = "HEAD",
                 path = "/b"
@@ -230,4 +236,3 @@ GET /a
 --- no_error_log
 [error]
 [warn]
-

@@ -18,3 +18,9 @@ test: all
 	PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH TEST_NGINX_NO_SHUFFLE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
 	util/lua-releng
 
+coverage: all
+	-@echo "Cleaning stats"
+	@rm -f luacov.stats.out
+	PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH TEST_NGINX_NO_SHUFFLE=1 TEST_COVERAGE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
+	@luacov
+	@tail -10 luacov.report.out

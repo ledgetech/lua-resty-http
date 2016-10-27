@@ -1,5 +1,3 @@
-# vim:set ft= ts=4 sw=4 et:
-
 use Test::Nginx::Socket;
 use Cwd qw(cwd);
 
@@ -7,12 +5,20 @@ plan tests => repeat_each() * (blocks() * 4);
 
 my $pwd = cwd();
 
-our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
-    error_log logs/error.log debug;
-};
-
 $ENV{TEST_NGINX_RESOLVER} = '8.8.8.8';
+$ENV{TEST_COVERAGE} ||= 0;
+
+our $HttpConfig = qq{
+    lua_package_path "$pwd/lib/?.lua;/usr/local/share/lua/5.1/?.lua;;";
+    error_log logs/error.log debug;
+
+    init_by_lua_block {
+        if $ENV{TEST_COVERAGE} == 1 then
+            jit.off()
+            require("luacov.runner").init()
+        end
+    }
+};
 
 no_long_string();
 #no_diff();
@@ -36,7 +42,7 @@ __DATA__
 
             ngx.say(headers["X-A-Header"])
             ngx.say(headers.x_b_header)
-            
+
             for k,v in pairs(headers) do
                 ngx.say(k, ": ", v)
             end
@@ -73,7 +79,7 @@ X-C-Header: c
             ngx.say(res.headers["X-Foo-Header"])
             ngx.say(res.headers["x-fOo-heaDeR"])
             ngx.say(res.headers.x_foo_header)
-            
+
             httpc:close()
         ';
     }
@@ -113,7 +119,7 @@ bar
 
             ngx.status = res.status
             ngx.print(res:read_body())
-            
+
             httpc:close()
         ';
     }
