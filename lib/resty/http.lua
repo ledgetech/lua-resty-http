@@ -288,10 +288,12 @@ local function _receive_headers(sock)
         if not line then
             return nil, err
         end
+
         local m, err = ngx_re_match(line, "([^:\\s]+):\\s*(.+)", "jo")
         if not m then
             break
         end
+
         local key = m[1]
         local val = m[2]
         if headers[key] then
