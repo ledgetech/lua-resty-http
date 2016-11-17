@@ -144,7 +144,7 @@ Host: 127.0.0.1:8081
             local http = require "resty.http"
             local httpc = http.new()
 
-            local res, err = httpc:connect("unix:test.sock")
+            local res, err = httpc:connect("unix:.test.sock")
             if not res then
                 ngx.log(ngx.ERR, err)
             end
@@ -157,7 +157,7 @@ Host: 127.0.0.1:8081
             end
         }
     }
---- tcp_listen: test.sock
+--- tcp_listen: .test.sock
 --- tcp_reply: OK
 --- request
 GET /a
