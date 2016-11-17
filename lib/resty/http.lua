@@ -198,8 +198,7 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(http[s]?)://([^:/]+)(?::(\d+))?(.*)]],
-        "jo")
+    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/]+)(?::(\d+))?(.*)]], "jo")
 
     if not m then
         if err then
@@ -208,6 +207,17 @@ function _M.parse_uri(self, uri)
 
         return nil, "bad uri: " .. uri
     else
+        -- If the URI is schemaless (i.e. //example.com) try to use our current
+        -- request scheme.
+        if not m[1] then
+            local scheme = ngx.var.scheme
+            if scheme then
+                m[1] = scheme
+            else
+                return nil, "schemaless URIs require a request context: " .. uri
+            end
+        end
+
         if m[3] then
             m[3] = tonumber(m[3])
         else

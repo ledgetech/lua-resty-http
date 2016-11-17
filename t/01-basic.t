@@ -295,3 +295,26 @@ bad uri: http:///example.com
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 10: Parse URI will use current request schema if omitted (and available)
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require("resty.http").new()
+            local parts, err = http:parse_uri("//example.com")
+            if not parts then
+                ngx.say(err)
+            else
+                ngx.say(parts[1])
+            end
+        ';
+    }
+--- request
+GET /a
+--- response_body
+http
+--- no_error_log
+[error]
+[warn]
