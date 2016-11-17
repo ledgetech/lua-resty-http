@@ -6,7 +6,7 @@ local str_find, str_lower, str_sub =
 
 
 local _M = {
-    _VERSION = '0.01',
+    _VERSION = '0.10',
 }
 
 
