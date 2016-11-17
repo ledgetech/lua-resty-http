@@ -245,6 +245,9 @@ GET /a
         content_by_lua '
             local http = require "resty.http"
 
+            local res, err = http:connect("127.0.0.1", 1984)
+            if not res then ngx.say(err) end
+
             local res, err = http:set_timeout(500)
             if not res then ngx.say(err) end
 
@@ -269,6 +272,26 @@ not initialized
 not initialized
 not initialized
 not initialized
+not initialized
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 9: Parse URI errors if malformed
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require("resty.http").new()
+            local parts, err = http:parse_uri("http:///example.com")
+            if not parts then ngx.say(err) end
+        ';
+    }
+--- request
+GET /a
+--- response_body
+bad uri: http:///example.com
 --- no_error_log
 [error]
 [warn]
