@@ -211,7 +211,7 @@ function _M.parse_uri(self, uri)
         -- request scheme.
         if not m[1] then
             local scheme = ngx.var.scheme
-            if scheme then
+            if scheme == "http" or scheme == "https" then
                 m[1] = scheme
             else
                 return nil, "schemaless URIs require a request context: " .. uri
