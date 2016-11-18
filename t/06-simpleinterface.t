@@ -193,7 +193,7 @@ OK
 [warn]
 
 
-=== TEST 4 Simple URI interface, params override, query as string, as leading ?
+=== TEST 5 Simple URI interface, params override, query as string, as leading ?
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -202,7 +202,6 @@ OK
             local httpc = http.new()
             local res, err = httpc:request_uri(
                 "http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2", {
-                    path = "/c",
                     query = "?a=2&b=3",
                 }
             )
@@ -215,7 +214,7 @@ OK
             ngx.print(res.body)
         ';
     }
-    location = /c {
+    location = /b {
         content_by_lua '
             for k,v in pairs(ngx.req.get_uri_args()) do
                 ngx.header["X-Header-" .. string.upper(k)] = v

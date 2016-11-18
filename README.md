@@ -358,11 +358,11 @@ Sets the current response based on the given `res`. Ensures that hop-by-hop head
 
 ## parse_uri
 
-`syntax: local scheme, host, port, path, query = unpack(httpc:parse_uri(uri))`
+`syntax: local scheme, host, port, path, query? = unpack(httpc:parse_uri(uri, query_in_path?))`
 
 This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI.
 
-Note: Prior to v0.10 the `query` was returned as part of the `path`, but from v0.10 onwards they are returned separately, and `query` does not contain the `?` marker.
+As of version `0.10`, the optional `query_in_path` parameter was added, which specifies whether the querystring is to be included in the `path` return value, or separately as its own return value. This defaults to `true` in order to maintain backwards compatability. When set to `false`, `path` will only include the path, and `query` will contain the URI args, not inluding the `?` delimeter.
 
 
 ## get_client_body_reader

@@ -207,7 +207,9 @@ local function _should_receive_body(method, code)
 end
 
 
-function _M.parse_uri(self, uri)
+function _M.parse_uri(self, uri, query_in_path)
+    if query_in_path == nil then query_in_path = true end
+
     local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/\?]+)(?::(\d+))?([^\?]*)\??(.*)]], "jo")
 
     if not m then
@@ -238,6 +240,12 @@ function _M.parse_uri(self, uri)
             end
         end
         if not m[4] or "" == m[4] then m[4] = "/" end
+
+        if query_in_path and m[5] and m[5] ~= "" then
+            m[4] = m[4] .. "?" .. m[5]
+            m[5] = nil
+        end
+
         return m, nil
     end
 end
@@ -248,12 +256,10 @@ local function _format_request(params)
     local headers = params.headers or {}
 
     local query = params.query or ""
-    if query then
-        if type(query) == "table" then
-            query = "?" .. ngx_encode_args(query)
-        elseif query ~= "" and str_sub(query, 1, 1) ~= "?" then
-            query = "?" .. query
-        end
+    if type(query) == "table" then
+        query = "?" .. ngx_encode_args(query)
+    elseif query ~= "" and str_sub(query, 1, 1) ~= "?" then
+        query = "?" .. query
     end
 
     -- Initialize request
@@ -761,7 +767,7 @@ end
 function _M.request_uri(self, uri, params)
     if not params then params = {} end
 
-    local parsed_uri, err = self:parse_uri(uri)
+    local parsed_uri, err = self:parse_uri(uri, false)
     if not parsed_uri then
         return nil, err
     end
