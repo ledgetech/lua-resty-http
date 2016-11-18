@@ -115,6 +115,16 @@ function _M.set_timeout(self, timeout)
 end
 
 
+function _M.set_timeouts(self, connect_timeout, send_timeout, read_timeout)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:settimeouts(connect_timeout, send_timeout, read_timeout)
+end
+
+
 function _M.ssl_handshake(self, ...)
     local sock = self.sock
     if not sock then
