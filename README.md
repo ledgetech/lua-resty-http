@@ -215,6 +215,7 @@ The `params` table accepts the following fields:
 * `version` The HTTP version number, currently supporting 1.0 or 1.1.
 * `method` The HTTP method string.
 * `path` The path string.
+* `query` The query string.
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
 * `ssl_verify` Verify SSL cert matches hostname
@@ -357,9 +358,11 @@ Sets the current response based on the given `res`. Ensures that hop-by-hop head
 
 ## parse_uri
 
-`syntax: local scheme, host, port, path = unpack(httpc:parse_uri(uri))`
+`syntax: local scheme, host, port, path, query = unpack(httpc:parse_uri(uri))`
 
-This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI. 
+This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI.
+
+Note: Prior to v0.10 the `query` was returned as part of the `path`, but from v0.10 onwards they are returned separately, and `query` does not contain the `?` marker.
 
 
 ## get_client_body_reader

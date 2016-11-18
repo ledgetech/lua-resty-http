@@ -198,7 +198,7 @@ end
 
 
 function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/]+)(?::(\d+))?(.*)]], "jo")
+    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/\?]+)(?::(\d+))?([^\?]*)\??(.*)]], "jo")
 
     if not m then
         if err then
@@ -241,6 +241,8 @@ local function _format_request(params)
     if query then
         if type(query) == "table" then
             query = "?" .. ngx_encode_args(query)
+        elseif query ~= "" and str_sub(query, 1, 1) ~= "?" then
+            query = "?" .. query
         end
     end
 
@@ -754,8 +756,9 @@ function _M.request_uri(self, uri, params)
         return nil, err
     end
 
-    local scheme, host, port, path = unpack(parsed_uri)
+    local scheme, host, port, path, query = unpack(parsed_uri)
     if not params.path then params.path = path end
+    if not params.query then params.query = query end
 
     local c, err = self:connect(host, port)
     if not c then
