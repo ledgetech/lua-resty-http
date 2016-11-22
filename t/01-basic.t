@@ -297,24 +297,77 @@ bad uri: http:///example.com
 [warn]
 
 
-=== TEST 10: Parse URI will use current request schema if omitted (and available)
+=== TEST 10: Parse URI fills in defaults correctly
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
         content_by_lua '
             local http = require("resty.http").new()
-            local parts, err = http:parse_uri("//example.com")
-            if not parts then
-                ngx.say(err)
-            else
-                ngx.say(parts[1])
+
+            function test_uri(uri)
+                local scheme, host, port, path, query = unpack(http:parse_uri(uri, false))
+                ngx.say("scheme: ", scheme, ", host: ", host, ", port: ", port, ", path: ", path, ", query: ", query)
             end
+
+            test_uri("http://example.com")
+            test_uri("http://example.com/")
+            test_uri("https://example.com/foo/bar")
+            test_uri("https://example.com/foo/bar?a=1&b=2")
+            test_uri("http://example.com?a=1&b=2")
+            test_uri("//example.com")
+            test_uri("//example.com?a=1&b=2")
+            test_uri("//example.com/foo/bar?a=1&b=2")
         ';
     }
 --- request
 GET /a
 --- response_body
-http
+scheme: http, host: example.com, port: 80, path: /, query: 
+scheme: http, host: example.com, port: 80, path: /, query: 
+scheme: https, host: example.com, port: 443, path: /foo/bar, query: 
+scheme: https, host: example.com, port: 443, path: /foo/bar, query: a=1&b=2
+scheme: http, host: example.com, port: 80, path: /, query: a=1&b=2
+scheme: http, host: example.com, port: 80, path: /, query: 
+scheme: http, host: example.com, port: 80, path: /, query: a=1&b=2
+scheme: http, host: example.com, port: 80, path: /foo/bar, query: a=1&b=2
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 11: Parse URI fills in defaults correctly, using backwards compatible mode
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require("resty.http").new()
+
+            function test_uri(uri)
+                local scheme, host, port, path, query = unpack(http:parse_uri(uri))
+                ngx.say("scheme: ", scheme, ", host: ", host, ", port: ", port, ", path: ", path)
+            end
+
+            test_uri("http://example.com")
+            test_uri("http://example.com/")
+            test_uri("https://example.com/foo/bar")
+            test_uri("https://example.com/foo/bar?a=1&b=2")
+            test_uri("http://example.com?a=1&b=2")
+            test_uri("//example.com")
+            test_uri("//example.com?a=1&b=2")
+            test_uri("//example.com/foo/bar?a=1&b=2")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+scheme: http, host: example.com, port: 80, path: /
+scheme: http, host: example.com, port: 80, path: /
+scheme: https, host: example.com, port: 443, path: /foo/bar
+scheme: https, host: example.com, port: 443, path: /foo/bar?a=1&b=2
+scheme: http, host: example.com, port: 80, path: /?a=1&b=2
+scheme: http, host: example.com, port: 80, path: /
+scheme: http, host: example.com, port: 80, path: /?a=1&b=2
+scheme: http, host: example.com, port: 80, path: /foo/bar?a=1&b=2
 --- no_error_log
 [error]
 [warn]

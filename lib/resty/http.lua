@@ -77,7 +77,7 @@ end
 
 
 local _M = {
-    _VERSION = '0.09',
+    _VERSION = '0.10',
 }
 _M._USER_AGENT = "lua-resty-http/" .. _M._VERSION .. " (Lua) ngx_lua/" .. ngx.config.ngx_lua_version
 
@@ -112,6 +112,16 @@ function _M.set_timeout(self, timeout)
     end
 
     return sock:settimeout(timeout)
+end
+
+
+function _M.set_timeouts(self, connect_timeout, send_timeout, read_timeout)
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    return sock:settimeouts(connect_timeout, send_timeout, read_timeout)
 end
 
 
@@ -197,8 +207,10 @@ local function _should_receive_body(method, code)
 end
 
 
-function _M.parse_uri(self, uri)
-    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/]+)(?::(\d+))?(.*)]], "jo")
+function _M.parse_uri(self, uri, query_in_path)
+    if query_in_path == nil then query_in_path = true end
+
+    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/\?]+)(?::(\d+))?([^\?]*)\??(.*)]], "jo")
 
     if not m then
         if err then
@@ -228,6 +240,12 @@ function _M.parse_uri(self, uri)
             end
         end
         if not m[4] or "" == m[4] then m[4] = "/" end
+
+        if query_in_path and m[5] and m[5] ~= "" then
+            m[4] = m[4] .. "?" .. m[5]
+            m[5] = nil
+        end
+
         return m, nil
     end
 end
@@ -238,10 +256,10 @@ local function _format_request(params)
     local headers = params.headers or {}
 
     local query = params.query or ""
-    if query then
-        if type(query) == "table" then
-            query = "?" .. ngx_encode_args(query)
-        end
+    if type(query) == "table" then
+        query = "?" .. ngx_encode_args(query)
+    elseif query ~= "" and str_sub(query, 1, 1) ~= "?" then
+        query = "?" .. query
     end
 
     -- Initialize request
@@ -749,13 +767,14 @@ end
 function _M.request_uri(self, uri, params)
     if not params then params = {} end
 
-    local parsed_uri, err = self:parse_uri(uri)
+    local parsed_uri, err = self:parse_uri(uri, false)
     if not parsed_uri then
         return nil, err
     end
 
-    local scheme, host, port, path = unpack(parsed_uri)
+    local scheme, host, port, path, query = unpack(parsed_uri)
     if not params.path then params.path = path end
+    if not params.query then params.query = query end
 
     local c, err = self:connect(host, port)
     if not c then
