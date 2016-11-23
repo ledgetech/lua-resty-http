@@ -1,4 +1,5 @@
 local http_headers = require "resty.http_headers"
+local resolve_dns = require "resty.resolve_dns"
 
 local ngx_socket_tcp = ngx.socket.tcp
 local ngx_req = ngx.req
@@ -776,7 +777,7 @@ function _M.request_uri(self, uri, params)
     if not params.path then params.path = path end
     if not params.query then params.query = query end
 
-    local c, err = self:connect(host, port)
+    local c, err = self:connect(resolve_dns(host), port)
     if not c then
         return nil, err
     end
