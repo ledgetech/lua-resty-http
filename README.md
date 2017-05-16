@@ -163,6 +163,12 @@ An optional Lua table can be specified as the last argument to this method to sp
 
 Sets the timeout (in ms) protection for subsequent operations, including the `connect` method.
 
+## set_timeouts
+
+`syntax: httpc:set_timeouts(connect_timeout, send_timeout, read_timeout)`
+
+Sets the connect timeout thresold, send timeout threshold, and read timeout threshold, respetively, in milliseconds, for subsequent socket operations (connect, send, receive, and iterators returned from receiveuntil).
+
 ## ssl_handshake
 
 `syntax: session, err = httpc:ssl_handshake(session, host, verify)`
