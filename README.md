@@ -192,6 +192,18 @@ Note that calling this instead of `close` is "safe" in that it will conditionall
 
 In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
 
+## set_proxy_options
+
+`syntax: httpc:set_proxy_options(opts)`
+
+Configure an http proxy to be used with this client instance. The `opts` is a table that accepts the following fields:
+
+* `http_proxy` - an URI to a proxy server to be used with http requests
+* `https_proxy` - an URI to a proxy server to be used with https requests
+* `no_proxy` - a comma separated list of hosts that should not be proxied.
+
+Note that proxy options are only applied when using the high-level `request_uri()` API.
+
 ## get_reused_times
 
 `syntax: times, err = httpc:get_reused_times()`

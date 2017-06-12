@@ -800,9 +800,63 @@ function _M.request_uri(self, uri, params)
     if not params.path then params.path = path end
     if not params.query then params.query = query end
 
-    local c, err = self:connect(host, port)
+    -- See if we should use a proxy to make this request
+    local proxy_host, proxy_port;
+    local proxy_uri = self:get_proxy_uri(scheme, host)
+    if proxy_uri then
+        local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
+        if not parsed_proxy_uri then
+            return nil, err
+        end
+
+        proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
+    end
+
+    local c, err = self:connect(proxy_host or host, proxy_port or port)
     if not c then
         return nil, err
+    end
+
+    if proxy_uri and scheme == "https" then
+        -- Make a CONNECT request to create a tunnel to the destination through
+        -- the proxy
+        local destination = host .. ":" .. port
+        local res, err = self:request({
+            method = "CONNECT",
+            path = destination,
+            headers = {
+                ["Host"] = destination
+            }
+        })
+
+        if not res then
+            return nil, err
+        end
+
+        if res.status < 200 or res.status > 299 then
+            return nil, "failed to establish a tunnel through a proxy: " .. res.status
+        end
+
+        -- don't keep this connection alive as the next request could target
+        -- any host and re-using the tunnel for that is not possible
+        self.keepalive = false
+    end
+
+    if proxy_uri and scheme == "http" then
+        -- http proxies expect to see the full URI in the request line
+        if port == 80 then
+            params.path = scheme .. "://" .. host .. path
+        else
+            params.path = scheme .. "://" .. host .. ":" .. port .. path
+        end
+    end
+
+    if proxy_uri then
+        -- self:connect() set the host and port to point to the proxy server. As
+        -- the connection to the proxy has been established, set the host and port
+        -- to point to the actual remote endpoint at the other end of the tunnel
+        self.host = host
+        self.port = port
     end
 
     if scheme == "https" then
@@ -912,6 +966,53 @@ function _M.proxy_response(self, response, chunksize)
             end
         end
     until not chunk
+end
+
+function _M.set_proxy_options(self, opts)
+    self.proxy_opts = opts
+end
+
+function _M.get_proxy_uri(self, scheme, host)
+    if not self.proxy_opts then
+        return nil
+    end
+
+    -- Check if the no_proxy option matches this host. Implementation adapted
+    -- from lua-http library (https://github.com/daurnimator/lua-http)
+    if self.proxy_opts.no_proxy then
+        if self.proxy_opts.no_proxy == "*" then
+            -- all hosts are excluded
+            return nil
+        end
+
+        local no_proxy_set = {}
+        -- wget allows domains in no_proxy list to be prefixed by "."
+        -- e.g. no_proxy=.mit.edu
+        for host_suffix in self.proxy_opts.no_proxy:gmatch("%.?([^,]+)") do
+            no_proxy_set[host_suffix] = true
+        end
+
+		-- From curl docs:
+		-- matched as either a domain which contains the hostname, or the
+		-- hostname itself. For example local.com would match local.com,
+		-- local.com:80, and www.local.com, but not www.notlocal.com.
+		for pos in host:gmatch("%f[^%z%.]()") do
+			local host_suffix = host:sub(pos, -1)
+			if no_proxy_set[host_suffix] then
+				return nil
+			end
+		end
+    end
+
+    if scheme == "http" and self.proxy_opts.http_proxy then
+        return self.proxy_opts.http_proxy
+    end
+
+    if scheme == "https" and self.proxy_opts.https_proxy then
+        return self.proxy_opts.https_proxy
+    end
+
+    return nil
 end
 
 
