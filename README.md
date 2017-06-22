@@ -97,12 +97,12 @@ server {
       httpc:connect("127.0.0.1", 80)
 
       -- And request using a path, rather than a full URI.
-      local res, err = httpc:request{
+      local res, err = httpc:request({
           path = "/helloworld",
           headers = {
               ["Host"] = "example.com",
           },
-      }
+      })
 
       if not res then
         ngx.say("failed to request: ", err)
