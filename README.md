@@ -23,6 +23,7 @@ Production ready.
 * [new](#new)
 * [connect](#connect)
 * [set_timeout](#set_timeout)
+* [set_timeouts](#set_timeouts)
 * [ssl_handshake](#ssl_handshake)
 * [set_keepalive](#set_keepalive)
 * [get_reused_times](#get_reused_times)
