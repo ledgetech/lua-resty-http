@@ -14,6 +14,8 @@ our $HttpConfig = qq{
             require("luacov.runner").init()
         end
     }
+
+	underscores_in_headers On;
 };
 
 no_long_string();
@@ -22,40 +24,38 @@ no_diff();
 run_tests();
 
 __DATA__
-=== TEST 1: Test header normalisation
+=== TEST 1: Unit test header normalisation
 --- http_config eval: $::HttpConfig
 --- config
 location = /a {
     content_by_lua_block {
         local headers = require("resty.http_headers").new()
 
-        headers.x_a_header = "a"
-        headers["x-b-header"] = "b"
-        headers["X-C-Header"] = "c"
-        headers["X_d-HEAder"] = "d"
+        headers["content-length"] = "a"
+        headers["TRANSFER-ENCODING"] = "b"
+        headers["SSL_CLIENT_CERTIFICATE"] = "foo"
 
-        ngx.say(headers["X-A-Header"])
-        ngx.say(headers.x_b_header)
+        assert(headers["coNtENt-LENgth"] == headers["content-length"],
+            "header values should match")
 
-        for k,v in pairs(headers) do
-            ngx.say(k, ": ", v)
-        end
+        assert(headers["transfer-encoding"] == headers["TRANSFER-ENCODING"],
+            "header values should match")
+
+        assert(headers["ssl_client_certificate"] == headers["SSL_CLIENT_CERTIFICATE"],
+            "header values should match")
+
+        assert(headers["SSL-CLIENT-CERTIFICATE"] ~= headers["SSL_CLIENT_CERTIFICATE"],
+            "underscores are separate to hyphens")
     }
 }
 --- request
 GET /a
 --- response_body
-a
-b
-x-b-header: b
-x-a-header: a
-X-d-HEAder: d
-X-C-Header: c
 --- no_error_log
 [error]
 
 
-=== TEST 2: Test headers can be accessed in all cases
+=== TEST 2: Integration test headers normalisation
 --- http_config eval: $::HttpConfig
 --- config
 location = /a {
@@ -71,7 +71,6 @@ location = /a {
         ngx.status = res.status
         ngx.say(res.headers["X-Foo-Header"])
         ngx.say(res.headers["x-fOo-heaDeR"])
-        ngx.say(res.headers.x_foo_header)
 
         httpc:close()
     }
@@ -87,12 +86,11 @@ GET /a
 --- response_body
 bar
 bar
-bar
 --- no_error_log
 [error]
 
 
-=== TEST 3: Test request headers are normalised
+=== TEST 3: Integration test request headers normalisation
 --- http_config eval: $::HttpConfig
 --- config
 location = /a {
@@ -105,7 +103,7 @@ location = /a {
             path = "/b",
             headers = {
                 ["uSeR-AgENT"] = "test_user_agent",
-                x_foo = "bar",
+                ["X_Foo"] = "bar",
             },
         }
 
@@ -118,7 +116,7 @@ location = /a {
 location = /b {
     content_by_lua_block {
         ngx.say(ngx.req.get_headers()["User-Agent"])
-        ngx.say(ngx.req.get_headers()["X-Foo"])
+        ngx.say(ngx.req.get_headers(nil, true)["X_Foo"])
     }
 }
 --- request
@@ -141,7 +139,6 @@ location = /a {
         headers["X-A-HEAder"] = "b"
 
         for k,v in pairs(headers) do
-        ngx.log(ngx.DEBUG, k, ": ", v)
             ngx.header[k] = v
         end
     }
