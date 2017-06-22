@@ -83,3 +83,56 @@ c
 d
 --- no_error_log
 [error]
+
+
+=== TEST 2: Reuse input params table
+--- http_config eval: $::HttpConfig
+--- config
+location /a {
+    content_by_lua_block {
+        local httpc = require("resty.http").new()
+
+        assert(httpc:connect("127.0.0.1", ngx.var.server_port),
+            "connect should return positively")
+
+        local params = {
+            path = "/b",
+            method = "HEAD",
+        }
+
+        local res, err = httpc:request(params)
+        assert(res, "request should return positvely")
+
+        assert(not params.headers, "params table should not be modified")
+
+        local res, err =
+            httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port, params)
+        assert(res, "request_uri should return positvely")
+
+        assert(not params.headers, "params table should not be modified")
+
+
+        assert(httpc:connect("127.0.0.1", ngx.var.server_port),
+            "connect should return positively")
+
+        local pipeline_params = {
+            { path = "/b", method = "POST" },
+            { path = "/b", method = "HEAD" },
+        }
+
+        local res, err = httpc:request_pipeline(pipeline_params)
+        assert(res, "request_pipeline should return positively")
+
+        assert(not pipeline_params[1].headers and not pipeline_params[2].headers,
+            "params tables should not be modified")
+
+    }
+}
+location /b {
+    echo "b";
+}
+--- request
+GET /a
+--- response_body
+--- no_error_log
+[error]
