@@ -734,7 +734,7 @@ end
 
 
 function _M.request(self, params)
-	params = tbl_copy(params)  -- Take by value
+    params = tbl_copy(params)  -- Take by value
     local res, err = self:send_request(params)
     if not res then
         return res, err
@@ -745,7 +745,7 @@ end
 
 
 function _M.request_pipeline(self, requests)
-	requests = tbl_copy(requests)  -- Take by value
+    requests = tbl_copy(requests)  -- Take by value
 
     for _, params in ipairs(requests) do
         if params.headers and params.headers["Expect"] == "100-continue" then
@@ -789,7 +789,7 @@ end
 
 
 function _M.request_uri(self, uri, params)
-	params = tbl_copy(params or {})  -- Take by value
+    params = tbl_copy(params or {})  -- Take by value
 
     local parsed_uri, err = self:parse_uri(uri, false)
     if not parsed_uri then
