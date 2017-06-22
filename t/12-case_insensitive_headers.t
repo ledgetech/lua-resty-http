@@ -6,16 +6,16 @@ my $pwd = cwd();
 $ENV{TEST_COVERAGE} ||= 0;
 
 our $HttpConfig = qq{
-    lua_package_path "$pwd/lib/?.lua;;";
+lua_package_path "$pwd/lib/?.lua;;";
 
-    init_by_lua_block {
-        if $ENV{TEST_COVERAGE} == 1 then
-            jit.off()
-            require("luacov.runner").init()
-        end
-    }
+init_by_lua_block {
+    if $ENV{TEST_COVERAGE} == 1 then
+        jit.off()
+        require("luacov.runner").init()
+    end
+}
 
-	underscores_in_headers On;
+underscores_in_headers On;
 };
 
 no_long_string();
@@ -46,6 +46,7 @@ location = /a {
 
         assert(headers["SSL-CLIENT-CERTIFICATE"] ~= headers["SSL_CLIENT_CERTIFICATE"],
             "underscores are separate to hyphens")
+
     }
 }
 --- request
@@ -147,5 +148,35 @@ location = /a {
 GET /a
 --- response_headers
 x-a-header: b
+--- no_error_log
+[error]
+
+
+=== TEST 5: Prove header tables are always unique
+--- http_config eval: $::HttpConfig
+--- config
+location = /a {
+    content_by_lua_block {
+        local headers = require("resty.http_headers").new()
+
+        headers["content-length"] = "a"
+        headers["TRANSFER-ENCODING"] = "b"
+        headers["SSL_CLIENT_CERTIFICATE"] = "foo"
+
+        local headers2 = require("resty.http_headers").new()
+
+        assert(headers2 ~= headers,
+            "headers should be unique")
+
+        assert(not next(headers2),
+            "headers2 should be empty")
+
+        assert(not next(getmetatable(headers2).normalised),
+            "headers normalised data should be empty")
+    }
+}
+--- request
+GET /a
+--- response_body
 --- no_error_log
 [error]
