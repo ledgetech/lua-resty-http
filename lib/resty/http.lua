@@ -78,6 +78,25 @@ local co_wrap = function(func)
 end
 
 
+-- Returns a new table, recursively copied from the one given.
+--
+-- @param   table   table to be copied
+-- @return  table
+local function tbl_copy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == "table" then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[tbl_copy(orig_key)] = tbl_copy(orig_value)
+        end
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+
 local _M = {
     _VERSION = '0.10',
 }
@@ -715,6 +734,7 @@ end
 
 
 function _M.request(self, params)
+	params = tbl_copy(params)  -- Take by value
     local res, err = self:send_request(params)
     if not res then
         return res, err
@@ -725,6 +745,8 @@ end
 
 
 function _M.request_pipeline(self, requests)
+	requests = tbl_copy(requests)  -- Take by value
+
     for _, params in ipairs(requests) do
         if params.headers and params.headers["Expect"] == "100-continue" then
             return nil, "Cannot pipeline request specifying Expect: 100-continue"
@@ -767,7 +789,7 @@ end
 
 
 function _M.request_uri(self, uri, params)
-    if not params then params = {} end
+	params = tbl_copy(params or {})  -- Take by value
 
     local parsed_uri, err = self:parse_uri(uri, false)
     if not parsed_uri then
