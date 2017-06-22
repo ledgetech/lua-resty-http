@@ -20,7 +20,7 @@ Production ready.
 
 # API
 
-* [new](#name)
+* [new](#new)
 * [connect](#connect)
 * [set_timeout](#set_timeout)
 * [ssl_handshake](#ssl_handshake)
