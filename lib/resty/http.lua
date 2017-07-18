@@ -801,7 +801,7 @@ function _M.request_uri(self, uri, params)
     if not params.query then params.query = query end
 
     -- See if we should use a proxy to make this request
-    local proxy_host, proxy_port;
+    local proxy_host, proxy_port
     local proxy_uri = self:get_proxy_uri(scheme, host)
     if proxy_uri then
         local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
