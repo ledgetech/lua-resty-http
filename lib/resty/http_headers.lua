@@ -4,7 +4,7 @@ local rawget, rawset, setmetatable =
 local str_lower = string.lower
 
 local _M = {
-    _VERSION = '0.10',
+    _VERSION = '0.11',
 }
 
 
