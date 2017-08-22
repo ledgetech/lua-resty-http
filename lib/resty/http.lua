@@ -787,7 +787,6 @@ function _M.request_pipeline(self, requests)
     return responses
 end
 
-
 function _M.request_uri(self, uri, params)
     params = tbl_copy(params or {})  -- Take by value
 
@@ -801,60 +800,50 @@ function _M.request_uri(self, uri, params)
     if not params.query then params.query = query end
 
     -- See if we should use a proxy to make this request
-    local proxy_host, proxy_port
     local proxy_uri = self:get_proxy_uri(scheme, host)
-    if proxy_uri then
-        local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
-        if not parsed_proxy_uri then
-            return nil, err
-        end
 
-        proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
+    -- Make the connection either through the proxy or directly
+    -- to the remote host
+    local c, err
+
+    if proxy_uri then
+        c, err = self:connect_proxy(proxy_uri, scheme, host, port)
+    else
+        c, err = self:connect(host, port)
     end
 
-    local c, err = self:connect(proxy_host or host, proxy_port or port)
     if not c then
         return nil, err
     end
 
-    if proxy_uri and scheme == "https" then
-        -- Make a CONNECT request to create a tunnel to the destination through
-        -- the proxy
-        local destination = host .. ":" .. port
-        local res, err = self:request({
-            method = "CONNECT",
-            path = destination,
-            headers = {
-                ["Host"] = destination
-            }
-        })
-
-        if not res then
-            return nil, err
-        end
-
-        if res.status < 200 or res.status > 299 then
-            return nil, "failed to establish a tunnel through a proxy: " .. res.status
-        end
-
-        -- don't keep this connection alive as the next request could target
-        -- any host and re-using the tunnel for that is not possible
-        self.keepalive = false
-    end
-
-    if proxy_uri and scheme == "http" then
-        -- http proxies expect to see the full URI in the request line
-        if port == 80 then
-            params.path = scheme .. "://" .. host .. path
-        else
-            params.path = scheme .. "://" .. host .. ":" .. port .. path
-        end
-    end
-
     if proxy_uri then
-        -- self:connect() set the host and port to point to the proxy server. As
+        if scheme == "http" then
+            -- When a proxy is used, the target URI must be in absolute-form
+            -- (RFC 7230, Section 5.3.2.). That is, it must be an absolute URI
+            -- to the remote resource with the scheme, host and an optional port
+            -- in place.
+            --
+            -- Since _format_request() constructs the request line by concatenating
+            -- params.path and params.query together, we need to modify the path
+            -- to also include the scheme, host and port so that the final form
+            -- in conformant to RFC 7230.
+            if port == 80 then
+                params.path = scheme .. "://" .. host .. path
+            else
+                params.path = scheme .. "://" .. host .. ":" .. port .. path
+            end
+        end
+
+        if scheme == "https" then
+            -- don't keep this connection alive as the next request could target
+            -- any host and re-using the proxy tunnel for that is not possible
+            self.keepalive = false
+        end
+
+        -- self:connect_uri() set the host and port to point to the proxy server. As
         -- the connection to the proxy has been established, set the host and port
-        -- to point to the actual remote endpoint at the other end of the tunnel
+        -- to point to the actual remote endpoint at the other end of the tunnel to
+        -- ensure the correct Host header added to the requests.
         self.host = host
         self.port = port
     end
@@ -1015,5 +1004,52 @@ function _M.get_proxy_uri(self, scheme, host)
     return nil
 end
 
+
+function _M.connect_proxy(self, proxy_uri, scheme, host, port)
+    -- Parse the provided proxy URI
+    local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
+    if not parsed_proxy_uri then
+        return nil, err
+    end
+
+    -- Check that the scheme is http (https is not supported for
+    -- connections between the client and the proxy)
+    local proxy_scheme = parsed_proxy_uri[1]
+    if proxy_scheme ~= "http" then
+        return nil, "protocol " .. proxy_scheme .. " not supported for proxy connections"
+    end
+
+    -- Make the connection to the given proxy
+    local proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
+    local c, err = self:connect(proxy_host, proxy_port)
+    if not c then
+        return nil, err
+    end
+
+    if scheme == "https" then
+        -- Make a CONNECT request to create a tunnel to the destination through
+        -- the proxy. The request-target and the Host header must be in the
+        -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
+        -- 4.3.6 for more details about the CONNECT request
+        local destination = host .. ":" .. port
+        local res, err = self:request({
+            method = "CONNECT",
+            path = destination,
+            headers = {
+                ["Host"] = destination
+            }
+        })
+
+        if not res then
+            return nil, err
+        end
+
+        if res.status < 200 or res.status > 299 then
+            return nil, "failed to establish a tunnel through a proxy: " .. res.status
+        end
+    end
+
+    return c, nil
+end
 
 return _M

@@ -245,3 +245,55 @@ GET /lua
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 6: request_uri makes a proper CONNECT request when proxying https resources
+--- http_config eval: $::HttpConfig
+--- config
+    location /lua {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:12345",
+                https_proxy = "http://127.0.0.1:12345"
+            })
+
+            -- Slight Hack: temporarily change the module global user agent to make it
+            -- predictable for this test case
+            local ua = http._USER_AGENT
+            http._USER_AGENT = "test_ua"
+            local res, err = httpc:request_uri("https://127.0.0.1/target?a=1&b=2")
+            http._USER_AGENT = ua
+
+            if not err then
+                -- The proxy request should fail as the TCP server listening returns
+                -- 403 response. We cannot really test the success case here as that
+                -- would require an actual reverse proxy to be implemented through
+                -- the limited functionality we have available in the raw TCP sockets
+                ngx.log(ngx.ERR, "unexpected success")
+                return
+            end
+
+            ngx.status = 403
+            ngx.say(err)
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_query eval_stdout
+# Note: The incoming request contains CRLF line endings and print needs to
+# be used here to get the same line breaks to the expected request
+print "CONNECT 127.0.0.1:443 HTTP/1.1\r\nUser-Agent: test_ua\r\nHost: 127.0.0.1:443\r\n\r\n"
+
+# The reply cannot be successful or otherwise the client would start
+# to do a TLS handshake with the proxied host and that we cannot
+# do with these sockets
+--- tcp_reply
+HTTP/1.1 403 Forbidden
+Connection: close
+
+--- request
+GET /lua
+--- error_code: 403
+--- no_error_log
+[error]
+[warn]
