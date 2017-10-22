@@ -23,6 +23,7 @@ Production ready.
 * [new](#new)
 * [connect](#connect)
 * [connect_proxy](#connect_proxy)
+* [set_proxy_options](#set_proxy_options)
 * [set_timeout](#set_timeout)
 * [set_timeouts](#set_timeouts)
 * [ssl_handshake](#ssl_handshake)

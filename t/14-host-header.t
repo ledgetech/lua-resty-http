@@ -12,7 +12,7 @@ $ENV{TEST_COVERAGE} ||= 0;
 our $HttpConfig = qq{
     lua_package_path "$pwd/lib/?.lua;/usr/local/share/lua/5.1/?.lua;;";
     error_log logs/error.log debug;
-    resolver 8.8.8.8;
+    resolver 8.8.8.8 ipv6=off;
 
     init_by_lua_block {
         if $ENV{TEST_COVERAGE} == 1 then

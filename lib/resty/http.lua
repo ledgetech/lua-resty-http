@@ -15,6 +15,8 @@ local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
+local ngx_re_gmatch = ngx.re.gmatch
+local ngx_re_sub = ngx.re.sub
 local ngx_re_gsub = ngx.re.gsub
 local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
@@ -958,7 +960,7 @@ function _M.proxy_response(self, response, chunksize)
 end
 
 function _M.set_proxy_options(self, opts)
-    self.proxy_opts = opts
+    self.proxy_opts = tbl_copy(opts)  -- Take by value
 end
 
 function _M.get_proxy_uri(self, scheme, host)
@@ -977,20 +979,27 @@ function _M.get_proxy_uri(self, scheme, host)
         local no_proxy_set = {}
         -- wget allows domains in no_proxy list to be prefixed by "."
         -- e.g. no_proxy=.mit.edu
-        for host_suffix in self.proxy_opts.no_proxy:gmatch("%.?([^,]+)") do
-            no_proxy_set[host_suffix] = true
+        for host_suffix in ngx_re_gmatch(self.proxy_opts.no_proxy, "\\.?([^,]+)") do
+            no_proxy_set[host_suffix[1]] = true
         end
 
 		-- From curl docs:
 		-- matched as either a domain which contains the hostname, or the
 		-- hostname itself. For example local.com would match local.com,
-		-- local.com:80, and www.local.com, but not www.notlocal.com.
-		for pos in host:gmatch("%f[^%z%.]()") do
-			local host_suffix = host:sub(pos, -1)
-			if no_proxy_set[host_suffix] then
-				return nil
-			end
-		end
+        -- local.com:80, and www.local.com, but not www.notlocal.com.
+        --
+        -- Therefore, we keep stripping subdomains from the host, compare
+        -- them to the ones in the no_proxy list and continue until we find
+        -- a match or until there's only the TLD left
+        repeat
+            if no_proxy_set[host] then
+                return nil
+            end
+
+            -- Strip the next level from the domain and check if that one
+            -- is on the list
+            host = ngx_re_sub(host, "^[^.]+\\.", "")
+        until not ngx_re_find(host, "\\.")
     end
 
     if scheme == "http" and self.proxy_opts.http_proxy then

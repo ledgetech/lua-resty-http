@@ -279,10 +279,8 @@ GET /lua
         }
     }
 --- tcp_listen: 12345
---- tcp_query eval_stdout
-# Note: The incoming request contains CRLF line endings and print needs to
-# be used here to get the same line breaks to the expected request
-print "CONNECT 127.0.0.1:443 HTTP/1.1\r\nUser-Agent: test_ua\r\nHost: 127.0.0.1:443\r\n\r\n"
+--- tcp_query eval
+qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Host: 127.0.0.1:443\r\n.*/s
 
 # The reply cannot be successful or otherwise the client would start
 # to do a TLS handshake with the proxied host and that we cannot
