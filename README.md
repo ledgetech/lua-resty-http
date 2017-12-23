@@ -22,6 +22,8 @@ Production ready.
 
 * [new](#new)
 * [connect](#connect)
+* [connect_proxy](#connect_proxy)
+* [set_proxy_options](#set_proxy_options)
 * [set_timeout](#set_timeout)
 * [set_timeouts](#set_timeouts)
 * [ssl_handshake](#ssl_handshake)
@@ -158,6 +160,24 @@ An optional Lua table can be specified as the last argument to this method to sp
 * `pool`
 : Specifies a custom name for the connection pool being used. If omitted, then the connection pool name will be generated from the string template `<host>:<port>` or `<unix-socket-path>`.
 
+## connect_proxy
+
+`syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port)`
+
+Attempts to connect to the web server through the given proxy server. The method accepts the following arguments:
+
+* `proxy_uri` - Full URI of the proxy server to use (e.g. `http://proxy.example.com:3128/`). Note: Only `http` protocol is supported.
+* `scheme` - The protocol to use between the proxy server and the remote host (`http` or `https`). If `https` is specified as the scheme, `connect_proxy()` makes a `CONNECT` request to establish a TCP tunnel to the remote host through the proxy server.
+* `host` - The hostname of the remote host to connect to.
+* `port` - The port of the remote host to connect to.
+
+If an error occurs during the connection attempt, this method returns `nil` with a string describing the error. If the connection was successfully established, the method returns `1`.
+
+There's a few key points to keep in mind when using this api:
+
+* If the scheme is `https`, you need to perform the TLS handshake with the remote server manually using the `ssl_handshake()` method before sending any requests through the proxy tunnel.
+* If the scheme is `http`, you need to ensure that the requests you send through the connections conforms to [RFC 7230](https://tools.ietf.org/html/rfc7230) and especially [Section 5.3.2.](https://tools.ietf.org/html/rfc7230#section-5.3.2) which states that the request target must be in absolute form. In practice, this means that when you use `send_request()`, the `path` must be an absolute URI to the resource (e.g. `http://example.com/index.html` instead of just `/index.html`).
+
 ## set_timeout
 
 `syntax: httpc:set_timeout(time)`
@@ -191,6 +211,18 @@ Only call this method in the place you would have called the `close` method inst
 Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
 
 In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
+
+## set_proxy_options
+
+`syntax: httpc:set_proxy_options(opts)`
+
+Configure an http proxy to be used with this client instance. The `opts` is a table that accepts the following fields:
+
+* `http_proxy` - an URI to a proxy server to be used with http requests
+* `https_proxy` - an URI to a proxy server to be used with https requests
+* `no_proxy` - a comma separated list of hosts that should not be proxied.
+
+Note that proxy options are only applied when using the high-level `request_uri()` API.
 
 ## get_reused_times
 
@@ -232,7 +264,7 @@ When the request is successful, `res` will contain the following fields:
 * `status` The status code.
 * `reason` The status reason phrase.
 * `headers` A table of headers. Multiple headers with the same field name will be presented as a table of values.
-* `has_body` A boolean flag indicating if there is a body to be read. 
+* `has_body` A boolean flag indicating if there is a body to be read.
 * `body_reader` An iterator function for reading the body in a streaming fashion.
 * `read_body` A method to read the entire body into a string.
 * `read_trailers` A method to merge any trailers underneath the headers, after reading the body.
@@ -408,7 +440,7 @@ local res, err = httpc:request{
 }
 ```
 
-If `sock` is specified, 
+If `sock` is specified,
 
 # Author
 

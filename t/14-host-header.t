@@ -12,7 +12,7 @@ $ENV{TEST_COVERAGE} ||= 0;
 our $HttpConfig = qq{
     lua_package_path "$pwd/lib/?.lua;/usr/local/share/lua/5.1/?.lua;;";
     error_log logs/error.log debug;
-    resolver 8.8.8.8;
+    resolver 8.8.8.8 ipv6=off;
 
     init_by_lua_block {
         if $ENV{TEST_COVERAGE} == 1 then
@@ -165,3 +165,30 @@ GET /a
 [error]
 --- response_body
 Unable to generate a useful Host header for a unix domain socket. Please provide one.
+
+=== TEST 6: Host header is correct when http_proxy is used
+--- http_config
+    lua_package_path "$TEST_NGINX_PWD/lib/?.lua;;";
+    error_log logs/error.log debug;
+    resolver 8.8.8.8;
+    server {
+        listen *:8080;
+    }
+
+--- config
+    location /lua {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:8080"
+            })
+            local res, err = httpc:request_uri("http://127.0.0.1:8081")
+        ';
+    }
+--- request
+GET /lua
+--- no_error_log
+[error]
+--- error_log
+Host: 127.0.0.1:8081

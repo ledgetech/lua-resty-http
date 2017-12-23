@@ -15,6 +15,8 @@ local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
 local ngx_re_match = ngx.re.match
+local ngx_re_gmatch = ngx.re.gmatch
+local ngx_re_sub = ngx.re.sub
 local ngx_re_gsub = ngx.re.gsub
 local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
@@ -98,7 +100,7 @@ end
 
 
 local _M = {
-    _VERSION = '0.11',
+    _VERSION = '0.12',
 }
 _M._USER_AGENT = "lua-resty-http/" .. _M._VERSION .. " (Lua) ngx_lua/" .. ngx.config.ngx_lua_version
 
@@ -787,7 +789,6 @@ function _M.request_pipeline(self, requests)
     return responses
 end
 
-
 function _M.request_uri(self, uri, params)
     params = tbl_copy(params or {})  -- Take by value
 
@@ -800,9 +801,53 @@ function _M.request_uri(self, uri, params)
     if not params.path then params.path = path end
     if not params.query then params.query = query end
 
-    local c, err = self:connect(host, port)
+    -- See if we should use a proxy to make this request
+    local proxy_uri = self:get_proxy_uri(scheme, host)
+
+    -- Make the connection either through the proxy or directly
+    -- to the remote host
+    local c, err
+
+    if proxy_uri then
+        c, err = self:connect_proxy(proxy_uri, scheme, host, port)
+    else
+        c, err = self:connect(host, port)
+    end
+
     if not c then
         return nil, err
+    end
+
+    if proxy_uri then
+        if scheme == "http" then
+            -- When a proxy is used, the target URI must be in absolute-form
+            -- (RFC 7230, Section 5.3.2.). That is, it must be an absolute URI
+            -- to the remote resource with the scheme, host and an optional port
+            -- in place.
+            --
+            -- Since _format_request() constructs the request line by concatenating
+            -- params.path and params.query together, we need to modify the path
+            -- to also include the scheme, host and port so that the final form
+            -- in conformant to RFC 7230.
+            if port == 80 then
+                params.path = scheme .. "://" .. host .. path
+            else
+                params.path = scheme .. "://" .. host .. ":" .. port .. path
+            end
+        end
+
+        if scheme == "https" then
+            -- don't keep this connection alive as the next request could target
+            -- any host and re-using the proxy tunnel for that is not possible
+            self.keepalive = false
+        end
+
+        -- self:connect_uri() set the host and port to point to the proxy server. As
+        -- the connection to the proxy has been established, set the host and port
+        -- to point to the actual remote endpoint at the other end of the tunnel to
+        -- ensure the correct Host header added to the requests.
+        self.host = host
+        self.port = port
     end
 
     if scheme == "https" then
@@ -914,5 +959,106 @@ function _M.proxy_response(self, response, chunksize)
     until not chunk
 end
 
+function _M.set_proxy_options(self, opts)
+    self.proxy_opts = tbl_copy(opts)  -- Take by value
+end
+
+function _M.get_proxy_uri(self, scheme, host)
+    if not self.proxy_opts then
+        return nil
+    end
+
+    -- Check if the no_proxy option matches this host. Implementation adapted
+    -- from lua-http library (https://github.com/daurnimator/lua-http)
+    if self.proxy_opts.no_proxy then
+        if self.proxy_opts.no_proxy == "*" then
+            -- all hosts are excluded
+            return nil
+        end
+
+        local no_proxy_set = {}
+        -- wget allows domains in no_proxy list to be prefixed by "."
+        -- e.g. no_proxy=.mit.edu
+        for host_suffix in ngx_re_gmatch(self.proxy_opts.no_proxy, "\\.?([^,]+)") do
+            no_proxy_set[host_suffix[1]] = true
+        end
+
+		-- From curl docs:
+		-- matched as either a domain which contains the hostname, or the
+		-- hostname itself. For example local.com would match local.com,
+        -- local.com:80, and www.local.com, but not www.notlocal.com.
+        --
+        -- Therefore, we keep stripping subdomains from the host, compare
+        -- them to the ones in the no_proxy list and continue until we find
+        -- a match or until there's only the TLD left
+        repeat
+            if no_proxy_set[host] then
+                return nil
+            end
+
+            -- Strip the next level from the domain and check if that one
+            -- is on the list
+            host = ngx_re_sub(host, "^[^.]+\\.", "")
+        until not ngx_re_find(host, "\\.")
+    end
+
+    if scheme == "http" and self.proxy_opts.http_proxy then
+        return self.proxy_opts.http_proxy
+    end
+
+    if scheme == "https" and self.proxy_opts.https_proxy then
+        return self.proxy_opts.https_proxy
+    end
+
+    return nil
+end
+
+
+function _M.connect_proxy(self, proxy_uri, scheme, host, port)
+    -- Parse the provided proxy URI
+    local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
+    if not parsed_proxy_uri then
+        return nil, err
+    end
+
+    -- Check that the scheme is http (https is not supported for
+    -- connections between the client and the proxy)
+    local proxy_scheme = parsed_proxy_uri[1]
+    if proxy_scheme ~= "http" then
+        return nil, "protocol " .. proxy_scheme .. " not supported for proxy connections"
+    end
+
+    -- Make the connection to the given proxy
+    local proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
+    local c, err = self:connect(proxy_host, proxy_port)
+    if not c then
+        return nil, err
+    end
+
+    if scheme == "https" then
+        -- Make a CONNECT request to create a tunnel to the destination through
+        -- the proxy. The request-target and the Host header must be in the
+        -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
+        -- 4.3.6 for more details about the CONNECT request
+        local destination = host .. ":" .. port
+        local res, err = self:request({
+            method = "CONNECT",
+            path = destination,
+            headers = {
+                ["Host"] = destination
+            }
+        })
+
+        if not res then
+            return nil, err
+        end
+
+        if res.status < 200 or res.status > 299 then
+            return nil, "failed to establish a tunnel through a proxy: " .. res.status
+        end
+    end
+
+    return c, nil
+end
 
 return _M
