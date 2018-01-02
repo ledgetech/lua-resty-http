@@ -254,7 +254,7 @@ The `params` table accepts the following fields:
 * `version` The HTTP version number, currently supporting 1.0 or 1.1.
 * `method` The HTTP method string.
 * `path` The path string.
-* `query` The query string.
+* `query` The query string, presented as either a literal string or Lua table..
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
 * `ssl_verify` Verify SSL cert matches hostname
