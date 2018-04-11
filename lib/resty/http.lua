@@ -873,9 +873,21 @@ function _M.request_uri(self, uri, params)
 
     res.body = body
 
-    local ok, err = self:set_keepalive()
-    if not ok then
-        ngx_log(ngx_ERR, err)
+    if params.keepalive_opts == nil then
+        local ok, err = self:set_keepalive()
+        if not ok then
+            ngx_log(ngx_ERR, err)
+        end
+    elseif params.keepalive_opts == false then
+        local ok, err = self:close()
+        if not ok then
+            ngx_log(ngx_ERR, err)
+        end
+    else
+        local ok, err = self:set_keepalive(unpack(params.keepalive_opts))
+        if not ok then
+            ngx_log(ngx_ERR, err)
+        end
     end
 
     return res, nil
