@@ -338,7 +338,7 @@ local function _receive_headers(sock)
             return nil, err
         end
 
-        local m, err = ngx_re_match(line, "([^:\\s]+):\\s*(.+)", "jo")
+        local m, err = ngx_re_match(line, "([^:\\s]+):\\s*(.*)", "jo")
         if not m then
             break
         end
