@@ -371,3 +371,43 @@ scheme: http, host: example.com, port: 80, path: /foo/bar?a=1&b=2
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 12: Allow empty HTTP header values (RFC7230)
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local httpc = require("resty.http").new()
+
+            -- Create a TCP connection and return an raw HTTP-response because
+            -- there is no way to set an empty header value in nginx.
+            assert(httpc:connect("127.0.0.1", 12345),
+                "connect should return positively")
+
+            local res = httpc:request({ path = "/b" })
+            if res.headers["X-Header-Empty"] == "" then
+                ngx.say("Empty")
+            end
+            ngx.say(res.headers["X-Header-Test"])
+            ngx.print(res:read_body())
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_reply
+HTTP/1.0 200 OK
+Date: Mon, 23 Jul 2018 13:00:00 GMT
+X-Header-Empty:
+X-Header-Test: Test
+Server: OpenResty
+
+OK
+--- request
+GET /a
+--- response_body
+Empty
+Test
+OK
+--- no_error_log
+[error]
+[warn]
