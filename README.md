@@ -116,7 +116,7 @@ server {
       local reader = res.body_reader
 
       repeat
-        local chunk, err = reader(8192)
+        local chunk, err, chunk_size = reader(8192)
         if err then
           ngx.log(ngx.ERR, err)
           break
@@ -327,7 +327,7 @@ The `body_reader` iterator can be used to stream the response body in chunk size
 local reader = res.body_reader
 
 repeat
-  local chunk, err = reader(8192)
+  local chunk, err, chunk_size = reader(8192)
   if err then
     ngx.log(ngx.ERR, err)
     break
@@ -339,9 +339,11 @@ repeat
 until not chunk
 ````
 
-If the reader is called with no arguments, the behaviour depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
+If the reader is called without arguments, the behavior depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
 
 Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get chunks smaller than the size you ask, as a remainder of the actual HTTP chunks.
+
+As of version `0.13`, a third return value was added, which indicates the size of the chunk. This value is `nil` when the reader is called without arguments and the response is **not** encoded as chunked.
 
 ## res:read_body
 

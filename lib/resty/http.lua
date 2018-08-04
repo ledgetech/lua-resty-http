@@ -405,7 +405,7 @@ local function _chunked_body_reader(sock, default_chunk_size)
                     co_yield(nil, err)
                 end
 
-                max_chunk_size = co_yield(str) or default_chunk_size
+                max_chunk_size = co_yield(str, nil, length) or default_chunk_size
 
                 -- If we're finished with this chunk, read the carriage return.
                 if remaining == 0 then
@@ -431,10 +431,13 @@ local function _body_reader(sock, content_length, default_chunk_size)
             repeat
                 local str, err, partial = sock:receive(max_chunk_size)
                 if not str and err == "closed" then
-                    co_yield(partial, err)
+                    -- We can't use `max_chunk_size` as third return value, because
+                    -- the socket is closed and a partial response is returned.
+                    -- Instead calculate the length of the partial response.
+                    co_yield(partial, err, #partial)
                 end
 
-                max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
+                max_chunk_size = tonumber(co_yield(str, nil, max_chunk_size) or default_chunk_size)
                 if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
 
                 if not max_chunk_size then
@@ -446,11 +449,15 @@ local function _body_reader(sock, content_length, default_chunk_size)
         elseif not content_length then
             -- We have no length but don't wish to stream.
             -- HTTP 1.0 with no length will close connection, so read to the end.
+            -- Note that the caller is responsible to calculate the chunk size,
+            -- because it explicitly said that it should not be streamed. Also,
+            -- it would be inefficient to calculate the chunk size here because
+            -- the whole body is being read.
             co_yield(sock:receive("*a"))
 
         elseif not max_chunk_size then
             -- We have a length and potentially keep-alive, but want everything.
-            co_yield(sock:receive(content_length))
+            co_yield(sock:receive(content_length), nil, content_length)
 
         else
             -- We have a length and potentially a keep-alive, and wish to stream
@@ -469,7 +476,7 @@ local function _body_reader(sock, content_length, default_chunk_size)
                     end
                     received = received + length
 
-                    max_chunk_size = tonumber(co_yield(str) or default_chunk_size)
+                    max_chunk_size = tonumber(co_yield(str, nil, length) or default_chunk_size)
                     if max_chunk_size and max_chunk_size < 0 then max_chunk_size = nil end
 
                     if not max_chunk_size then
@@ -911,7 +918,7 @@ function _M.get_client_body_reader(self, chunksize, sock)
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else
-       return nil
+        return nil
     end
 end
 
@@ -983,9 +990,9 @@ function _M.get_proxy_uri(self, scheme, host)
             no_proxy_set[host_suffix[1]] = true
         end
 
-		-- From curl docs:
-		-- matched as either a domain which contains the hostname, or the
-		-- hostname itself. For example local.com would match local.com,
+        -- From curl docs:
+        -- matched as either a domain which contains the hostname, or the
+        -- hostname itself. For example local.com would match local.com,
         -- local.com:80, and www.local.com, but not www.notlocal.com.
         --
         -- Therefore, we keep stripping subdomains from the host, compare

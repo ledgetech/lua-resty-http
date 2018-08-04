@@ -40,15 +40,18 @@ __DATA__
             }
 
             local chunks = {}
+            local total_size = 0
             repeat
-                local chunk = res.body_reader()
+                local chunk, _, chunk_size = res.body_reader()
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
             until not chunk
 
             local body = table.concat(chunks)
             ngx.say(#body)
+            ngx.say(total_size)
             ngx.say(res.headers["Transfer-Encoding"])
 
             httpc:close()
@@ -67,6 +70,7 @@ __DATA__
 --- request
 GET /a
 --- response_body
+32768
 32768
 chunked
 --- no_error_log
@@ -89,9 +93,10 @@ chunked
 
             local chunks = {}
             repeat
-                local chunk = res.body_reader()
+                local chunk, _, chunk_size = res.body_reader()
                 if chunk then
                     table.insert(chunks, chunk)
+                    assert(chunk_size == nil, "chunk size should be nil")
                 end
             until not chunk
 
@@ -139,17 +144,20 @@ nil
             }
 
             local chunks = {}
+            local total_size = 0
             local buffer_size = 16384
             repeat
-                local chunk = res.body_reader(buffer_size)
+                local chunk, _, chunk_size = res.body_reader(buffer_size)
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
 
                 buffer_size = nil
             until not chunk
 
             local body = table.concat(chunks)
+            ngx.say(total_size)
             ngx.say(res.headers["Transfer-Encoding"])
 
             httpc:close()
@@ -169,6 +177,7 @@ nil
 --- request
 GET /a
 --- response_body
+16384
 nil
 --- error_log
 Buffer size not specified, bailing
@@ -189,15 +198,18 @@ Buffer size not specified, bailing
             }
 
             local chunks = {}
+            local total_size = 0
             repeat
-                local chunk = res.body_reader()
+                local chunk, _, chunk_size = res.body_reader()
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
             until not chunk
 
             local body = table.concat(chunks)
             ngx.say(#body)
+            ngx.say(total_size)
             ngx.say(res.headers["Transfer-Encoding"])
             ngx.say(#chunks)
 
@@ -218,6 +230,7 @@ Buffer size not specified, bailing
 --- request
 GET /a
 --- response_body
+32768
 32768
 nil
 1
@@ -241,17 +254,20 @@ nil
             }
 
             local chunks = {}
+            local total_size = 0
             local size = 8192
             repeat
-                local chunk = res.body_reader(size)
+                local chunk, _, chunk_size = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
                 size = size + size
             until not chunk
 
             local body = table.concat(chunks)
             ngx.say(#body)
+            ngx.say(total_size)
             ngx.say(res.headers["Transfer-Encoding"])
             ngx.say(#chunks)
 
@@ -272,6 +288,7 @@ nil
 --- request
 GET /a
 --- response_body
+32769
 32769
 nil
 3
@@ -295,17 +312,20 @@ nil
             }
 
             local chunks = {}
+            local total_size = 0
             local size = 8192
             repeat
-                local chunk = res.body_reader(size)
+                local chunk, _, chunk_size = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
                 size = size + size
             until not chunk
 
             local body = table.concat(chunks)
             ngx.say(#body)
+            ngx.say(total_size)
             ngx.say(#chunks)
 
             httpc:close()
@@ -337,6 +357,7 @@ nil
 GET /a
 --- response_body
 32769
+32769
 3
 --- no_error_log
 [error]
@@ -357,17 +378,20 @@ GET /a
             }
 
             local chunks = {}
+            local total_size = 0
             local size = 8192
             repeat
-                local chunk = res.body_reader(size)
+                local chunk, _, chunk_size = res.body_reader(size)
                 if chunk then
                     table.insert(chunks, chunk)
+                    total_size = total_size + chunk_size
                 end
                 size = size + size
             until not chunk
 
             local body = table.concat(chunks)
             ngx.say(#body)
+            ngx.say(total_size)
             ngx.say(res.headers["Transfer-Encoding"])
             ngx.say(#chunks)
 
@@ -387,6 +411,7 @@ GET /a
 --- request
 GET /a
 --- response_body
+32768
 32768
 chunked
 3

@@ -79,10 +79,12 @@ GET /a
             }
 
             local chunks = {}
+            local sizes = {}
             local c = 1
             repeat
-                local chunk, err = res.body_reader()
+                local chunk, err, chunk_size = res.body_reader()
                 if chunk then
+                    sizes[c] = chunk_size
                     chunks[c] = chunk
                     c = c + 1
                 end
@@ -90,6 +92,7 @@ GET /a
 
             local body = table.concat(chunks)
 
+            ngx.say(table.concat(sizes, "\\n"))
             ngx.say(#body)
             ngx.say(#chunks)
             httpc:close()
@@ -114,6 +117,8 @@ GET /a
 --- request
 GET /a
 --- response_body
+32768
+32768
 65536
 2
 --- no_error_log
