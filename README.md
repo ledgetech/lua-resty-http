@@ -67,7 +67,8 @@ server {
         headers = {
           ["Content-Type"] = "application/x-www-form-urlencoded",
         },
-        keepalive_opts = {10000, 10}
+        keepalive_timeout = 60,
+        keepalive_pool = 10
       })
 
       if not res then
@@ -274,7 +275,10 @@ When the request is successful, `res` will contain the following fields:
 
 `syntax: res, err = httpc:request_uri(uri, params)`
 
-The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself, and you can set keepalive options with `keepalive_opts`.
+The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself, Moreover you can set keepalive options with to fileds:
+
+* `keepalive_timeout` A value for tcpsock:setkeepalive (default is 0), Set `-1` to close connection immediately.
+* `keepalive_pool` A value for tcpsock:setkeepalive (default is lua_socket_pool_size).
 
 In this mode, there is no need to connect manually first. The connection is made on your behalf, suiting cases where you simply need to grab a URI without too much hassle.
 

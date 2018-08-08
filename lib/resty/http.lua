@@ -873,21 +873,31 @@ function _M.request_uri(self, uri, params)
 
     res.body = body
 
-    if params.keepalive_opts == nil then
-        local ok, err = self:set_keepalive()
-        if not ok then
-            ngx_log(ngx_ERR, err)
-        end
-    elseif params.keepalive_opts == false then
-        local ok, err = self:close()
-        if not ok then
-            ngx_log(ngx_ERR, err)
-        end
+    local ok, err
+    if params.keepalive_timeout == nil then
+      ok, err = self:set_keepalive()
+      if not ok then
+          ngx_log(ngx_ERR, err)
+      end
     else
-        local ok, err = self:set_keepalive(unpack(params.keepalive_opts))
+      if params.keepalive_timeout == -1 then
+        ok, err = self:close()
         if not ok then
             ngx_log(ngx_ERR, err)
         end
+      else
+        if params.keepalive_pool then
+          ok, err = self:set_keepalive(params.keepalive_timeout, params.keepalive_pool)
+          if not ok then
+              ngx_log(ngx_ERR, err)
+          end
+        else
+          ok, err = self:set_keepalive(params.keepalive_timeout)
+          if not ok then
+              ngx_log(ngx_ERR, err)
+          end
+        end
+      end
     end
 
     return res, nil
