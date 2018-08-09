@@ -866,11 +866,13 @@ function _M.request_uri(self, uri, params)
 
     local res, err = self:request(params)
     if not res then
+        self:close()
         return nil, err
     end
 
     local body, err = res:read_body()
     if not body then
+        self:close()
         return nil, err
     end
 
