@@ -855,13 +855,17 @@ function _M.request_uri(self, uri, params)
 
     if scheme == "https" then
         local verify = true
+
         if params.ssl_verify == false then
             verify = false
         end
+
         local ok, err = self:ssl_handshake(nil, host, verify)
         if not ok then
+            self:close()
             return nil, err
         end
+
     end
 
     local res, err = self:request(params)
