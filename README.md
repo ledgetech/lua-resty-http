@@ -275,10 +275,13 @@ When the request is successful, `res` will contain the following fields:
 
 `syntax: res, err = httpc:request_uri(uri, params)`
 
-The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself, Moreover you can set keepalive options with to fileds:
+The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself.
 
-* `keepalive_timeout` A value for tcpsock:setkeepalive (default is 0), Set `-1` to close connection immediately.
-* `keepalive_pool` A value for tcpsock:setkeepalive (default is lua_socket_pool_size).
+There are 3 additional parmaters for controlling keepalives:
+
+* `keepalive` Set to `false` to disable keepalives and immediately close the connection.
+* `keepalive_timeout` The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
+* `keepalive_pool` The maxmimal number of connections in the pool. Defaults to `lua_socket_pool_size`.
 
 In this mode, there is no need to connect manually first. The connection is made on your behalf, suiting cases where you simply need to grab a URI without too much hassle.
 
