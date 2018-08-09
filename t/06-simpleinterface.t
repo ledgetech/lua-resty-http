@@ -1,7 +1,5 @@
-use Test::Nginx::Socket;
+use Test::Nginx::Socket 'no_plan';
 use Cwd qw(cwd);
-
-plan tests => repeat_each() * (blocks() * 6);
 
 my $pwd = cwd();
 
@@ -232,3 +230,40 @@ OK
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 6: Connection is closed on error
+--- http_config eval: $::HttpConfig
+--- config
+    lua_socket_read_timeout 100ms;
+    location = /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b?a=1&b=2")
+
+            if not res then
+                ngx.log(ngx.ERR, err)
+            else
+                return ngx.say("BAD")
+            end
+
+            local ok, err = httpc.sock:close()
+            ngx.say(ok, " ", err)
+
+        }
+    }
+    location = /b {
+        content_by_lua_block {
+            ngx.say("1")
+            ngx.flush(true)
+            ngx.sleep(0.5)
+            ngx.say("2")
+
+        }
+    }
+--- request
+GET /a
+--- response_body
+nil closed
+--- error_log
+lua tcp socket read timed out
