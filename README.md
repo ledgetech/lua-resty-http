@@ -56,7 +56,7 @@ server {
   location /simpleinterface {
     resolver 8.8.8.8;  # use Google's open DNS server for an example
 
-    content_by_lua '
+    content_by_lua_block {
 
       -- For simple singleshot requests, use the URI interface.
       local http = require "resty.http"
@@ -87,12 +87,12 @@ server {
       end
 
       ngx.say(res.body)
-    ';
+    }
   }
 
 
   location /genericinterface {
-    content_by_lua '
+    content_by_lua_block {
 
       local http = require "resty.http"
       local httpc = http.new()
@@ -134,7 +134,7 @@ server {
         ngx.say("failed to set keepalive: ", err)
         return
       end
-    ';
+    }
   }
 }
 ````
