@@ -6,7 +6,6 @@ local ngx_req = ngx.req
 local ngx_req_socket = ngx_req.socket
 local ngx_req_get_headers = ngx_req.get_headers
 local ngx_req_get_method = ngx_req.get_method
-local str_gmatch = string.gmatch
 local str_lower = string.lower
 local str_upper = string.upper
 local str_find = string.find
@@ -112,6 +111,7 @@ local HTTP = {
     [1.1] = " HTTP/1.1\r\n",
 }
 
+
 local DEFAULT_PARAMS = {
     method = "GET",
     path = "/",
@@ -119,7 +119,7 @@ local DEFAULT_PARAMS = {
 }
 
 
-function _M.new(self)
+function _M.new(_)
     local sock, err = ngx_socket_tcp()
     if not sock then
         return nil, err
@@ -230,7 +230,7 @@ local function _should_receive_body(method, code)
 end
 
 
-function _M.parse_uri(self, uri, query_in_path)
+function _M.parse_uri(_, uri, query_in_path)
     if query_in_path == nil then query_in_path = true end
 
     local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//([^:/\?]+)(?::(\d+))?([^\?]*)\??(.*)]], "jo")
@@ -339,6 +339,8 @@ local function _receive_headers(sock)
         end
 
         local m, err = ngx_re_match(line, "([^:\\s]+):\\s*(.*)", "jo")
+        if err then ngx_log(ngx_ERR, err) end
+
         if not m then
             break
         end
@@ -563,7 +565,7 @@ end
 
 
 local function _handle_continue(sock, body)
-    local status, version, reason, err = _receive_status(sock)
+    local status, version, reason, err = _receive_status(sock) --luacheck: no unused
     if not status then
         return nil, nil, err
     end
@@ -662,7 +664,7 @@ function _M.read_response(self, params)
         if not _status then
             return nil, _err
         elseif _status ~= 100 then
-            status, version, err = _status, _version, _err
+            status, version, err = _status, _version, _err -- luacheck: no unused
         end
     end
 
@@ -789,6 +791,7 @@ function _M.request_pipeline(self, requests)
     return responses
 end
 
+
 function _M.request_uri(self, uri, params)
     params = tbl_copy(params or {})  -- Take by value
 
@@ -891,7 +894,7 @@ function _M.request_uri(self, uri, params)
 end
 
 
-function _M.get_client_body_reader(self, chunksize, sock)
+function _M.get_client_body_reader(_, chunksize, sock)
     chunksize = chunksize or 65536
 
     if not sock then
@@ -935,7 +938,7 @@ function _M.proxy_request(self, chunksize)
 end
 
 
-function _M.proxy_response(self, response, chunksize)
+function _M.proxy_response(_, response, chunksize)
     if not response then
         ngx_log(ngx_ERR, "no response provided")
         return
@@ -968,9 +971,11 @@ function _M.proxy_response(self, response, chunksize)
     until not chunk
 end
 
+
 function _M.set_proxy_options(self, opts)
     self.proxy_opts = tbl_copy(opts)  -- Take by value
 end
+
 
 function _M.get_proxy_uri(self, scheme, host)
     if not self.proxy_opts then
@@ -1069,5 +1074,6 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port)
 
     return c, nil
 end
+
 
 return _M
