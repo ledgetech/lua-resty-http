@@ -594,7 +594,7 @@ function _M.send_request(self, params)
     if params_headers then
         -- We assign one by one so that the metatable can handle case insensitivity
         -- for us. You can blame the spec for this inefficiency.
-        for k,v in pairs(params_headers) do
+        for k, v in pairs(params_headers) do
             headers[k] = v
         end
     end
@@ -685,8 +685,8 @@ function _M.read_response(self, params)
     -- keepalive is true by default. Determine if this is correct or not.
     local ok, connection = pcall(str_lower, res_headers["Connection"])
     if ok then
-        if  (version == 1.1 and connection == "close") or
-            (version == 1.0 and connection ~= "keep-alive") then
+        if (version == 1.1 and str_find(connection, "close", 1, true)) or
+           (version == 1.0 and not str_find(connection, "keep-alive", 1, true)) then
             self.keepalive = false
         end
     else
@@ -738,7 +738,7 @@ end
 
 
 function _M.request(self, params)
-    params = tbl_copy(params)  -- Take by value
+    params = tbl_copy(params) -- Take by value
     local res, err = self:send_request(params)
     if not res then
         return res, err
@@ -749,7 +749,7 @@ end
 
 
 function _M.request_pipeline(self, requests)
-    requests = tbl_copy(requests)  -- Take by value
+    requests = tbl_copy(requests) -- Take by value
 
     for _, params in ipairs(requests) do
         if params.headers and params.headers["Expect"] == "100-continue" then
@@ -793,7 +793,7 @@ end
 
 
 function _M.request_uri(self, uri, params)
-    params = tbl_copy(params or {})  -- Take by value
+    params = tbl_copy(params or {}) -- Take by value
 
     local parsed_uri, err = self:parse_uri(uri, false)
     if not parsed_uri then
@@ -929,18 +929,18 @@ function _M.get_client_body_reader(_, chunksize, sock)
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else
-       return nil
+        return nil
     end
 end
 
 
 function _M.proxy_request(self, chunksize)
-    return self:request{
+    return self:request({
         method = ngx_req_get_method(),
         path = ngx_re_gsub(ngx_var.uri, "\\s", "%20", "jo") .. ngx_var.is_args .. (ngx_var.query_string or ""),
         body = self:get_client_body_reader(chunksize),
         headers = ngx_req_get_headers(),
-    }
+    })
 end
 
 
@@ -953,7 +953,7 @@ function _M.proxy_response(_, response, chunksize)
     ngx.status = response.status
 
     -- Filter out hop-by-hop headeres
-    for k,v in pairs(response.headers) do
+    for k, v in pairs(response.headers) do
         if not HOP_BY_HOP_HEADERS[str_lower(k)] then
             ngx_header[k] = v
         end
@@ -979,7 +979,7 @@ end
 
 
 function _M.set_proxy_options(self, opts)
-    self.proxy_opts = tbl_copy(opts)  -- Take by value
+    self.proxy_opts = tbl_copy(opts) -- Take by value
 end
 
 
@@ -1003,9 +1003,9 @@ function _M.get_proxy_uri(self, scheme, host)
             no_proxy_set[host_suffix[1]] = true
         end
 
-		-- From curl docs:
-		-- matched as either a domain which contains the hostname, or the
-		-- hostname itself. For example local.com would match local.com,
+        -- From curl docs:
+        -- matched as either a domain which contains the hostname, or the
+        -- hostname itself. For example local.com would match local.com,
         -- local.com:80, and www.local.com, but not www.notlocal.com.
         --
         -- Therefore, we keep stripping subdomains from the host, compare
