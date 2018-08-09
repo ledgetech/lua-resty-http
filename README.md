@@ -36,7 +36,7 @@ Production ready.
 * [Response](#response)
     * [body_reader](#resbody_reader)
     * [read_body](#resread_body)
-    * [read_trailes](#resread_trailers)
+    * [read_trailers](#resread_trailers)
 * [Proxy](#proxy)
     * [proxy_request](#proxy_request)
     * [proxy_response](#proxy_response)
