@@ -190,13 +190,13 @@ Sets the timeout (in ms) protection for subsequent operations, including the `co
 
 `syntax: httpc:set_timeouts(connect_timeout, send_timeout, read_timeout)`
 
-Sets the connect timeout thresold, send timeout threshold, and read timeout threshold, respetively, in milliseconds, for subsequent socket operations (connect, send, receive, and iterators returned from receiveuntil).
+Sets the connect timeout threshold, send timeout threshold, and read timeout threshold, respectively, in milliseconds, for subsequent socket operations (connect, send, receive, and iterators returned from receiveuntil).
 
 ## ssl_handshake
 
 `syntax: session, err = httpc:ssl_handshake(session, host, verify)`
 
-Performs an SSL handshake on the TCP connection, only availble in ngx_lua > v0.9.11
+Performs an SSL handshake on the TCP connection, only available in ngx_lua > v0.9.11
 
 See docs for [ngx.socket.tcp](https://github.com/openresty/lua-nginx-module#ngxsockettcp) for details.
 
@@ -212,7 +212,7 @@ Only call this method in the place you would have called the `close` method inst
 
 Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
 
-In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the conneciton is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
+In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the connection is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
 
 ## set_proxy_options
 
@@ -277,11 +277,11 @@ When the request is successful, `res` will contain the following fields:
 
 The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself.
 
-There are 3 additional parmaters for controlling keepalives:
+There are 3 additional parameters for controlling keepalives:
 
 * `keepalive` Set to `false` to disable keepalives and immediately close the connection.
 * `keepalive_timeout` The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
-* `keepalive_pool` The maxmimal number of connections in the pool. Defaults to `lua_socket_pool_size`.
+* `keepalive_pool` The maximum number of connections in the pool. Defaults to `lua_socket_pool_size`.
 
 In this mode, there is no need to connect manually first. The connection is made on your behalf, suiting cases where you simply need to grab a URI without too much hassle.
 
@@ -409,7 +409,7 @@ Sets the current response based on the given `res`. Ensures that hop-by-hop head
 
 This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI.
 
-As of version `0.10`, the optional `query_in_path` parameter was added, which specifies whether the querystring is to be included in the `path` return value, or separately as its own return value. This defaults to `true` in order to maintain backwards compatability. When set to `false`, `path` will only include the path, and `query` will contain the URI args, not inluding the `?` delimeter.
+As of version `0.10`, the optional `query_in_path` parameter was added, which specifies whether the querystring is to be included in the `path` return value, or separately as its own return value. This defaults to `true` in order to maintain backwards compatibility. When set to `false`, `path` will only include the path, and `query` will contain the URI args, not including the `?` delimiter.
 
 
 ## get_client_body_reader
