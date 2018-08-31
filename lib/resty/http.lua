@@ -702,18 +702,35 @@ function _M.read_response(self, params)
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
-        local ok, encoding = pcall(str_lower, res_headers["Transfer-Encoding"])
-        if ok and version == 1.1 and encoding == "chunked" then
-            body_reader, err = _chunked_body_reader(sock)
-            has_body = true
-        else
+        has_body = true
 
-            local ok, length = pcall(tonumber, res_headers["Content-Length"])
-            if ok then
-                body_reader, err = _body_reader(sock, length)
-                has_body = true
-            end
+        local te = res_headers["Transfer-Encoding"]
+
+        -- Handle duplicate headers
+        -- This shouldn't happen but can in the real world
+        if type(te) == "table" then
+            te = tbl_concat(te, "")
         end
+
+        local ok, encoding = pcall(str_lower, te)
+        if not ok then
+            encoding = ""
+        end
+
+        if version == 1.1 and str_find(encoding, "chunked", 1, true) ~= nil then
+            body_reader, err = _chunked_body_reader(sock)
+
+        else
+            local ok, length = pcall(tonumber, res_headers["Content-Length"])
+            if not ok then
+                -- No content-length header, read until connection is closed by server
+                length = nil
+            end
+
+            body_reader, err = _body_reader(sock, length)
+
+        end
+
     end
 
     if res_headers["Trailer"] then
