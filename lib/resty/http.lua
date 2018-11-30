@@ -829,7 +829,16 @@ function _M.request_uri(self, uri, params)
     local c, err
 
     if proxy_uri then
-        c, err = self:connect_proxy(proxy_uri, scheme, host, port)
+        local proxy_authorization
+        if scheme == "https" then
+            if params.headers and params.headers["Proxy-Authorization"] then
+                proxy_authorization = params.headers["Proxy-Authorization"]
+            else
+                proxy_authorization = self.proxy_opts.https_proxy_authorization
+            end
+        end
+
+        c, err = self:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)
     else
         c, err = self:connect(host, port)
     end
@@ -854,9 +863,17 @@ function _M.request_uri(self, uri, params)
             else
                 params.path = scheme .. "://" .. host .. ":" .. port .. path
             end
-        end
 
-        if scheme == "https" then
+            if self.proxy_opts.http_proxy_authorization then
+                if not params.headers then
+                    params.headers = {}
+                end
+
+                if not params.headers["Proxy-Authorization"] then
+                    params.headers["Proxy-Authorization"] = self.proxy_opts.http_proxy_authorization
+                end
+            end
+        elseif scheme == "https" then
             -- don't keep this connection alive as the next request could target
             -- any host and re-using the proxy tunnel for that is not possible
             self.keepalive = false
@@ -1051,7 +1068,7 @@ function _M.get_proxy_uri(self, scheme, host)
 end
 
 
-function _M.connect_proxy(self, proxy_uri, scheme, host, port)
+function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorization)
     -- Parse the provided proxy URI
     local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
     if not parsed_proxy_uri then
@@ -1082,7 +1099,8 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port)
             method = "CONNECT",
             path = destination,
             headers = {
-                ["Host"] = destination
+                ["Host"] = destination,
+                ["Proxy-Authorization"] = proxy_authorization,
             }
         })
 
