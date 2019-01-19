@@ -537,10 +537,11 @@ local function _read_trailers(res)
 end
 
 
-local function _send_body(sock, body)
+local function _send_body(sock, body, chunksize)
     if type(body) == 'function' then
+        chunksize = chunksize or 65536
         repeat
-            local chunk, err, partial = body()
+            local chunk, err, partial = body(chunksize)
 
             if chunk then
                 local ok, err = sock:send(chunk)
