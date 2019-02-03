@@ -99,7 +99,7 @@ end
 
 
 local _M = {
-    _VERSION = '0.12',
+    _VERSION = '0.13',
 }
 _M._USER_AGENT = "lua-resty-http/" .. _M._VERSION .. " (Lua) ngx_lua/" .. ngx.config.ngx_lua_version
 
