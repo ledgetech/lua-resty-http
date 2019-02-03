@@ -164,7 +164,7 @@ An optional Lua table can be specified as the last argument to this method to sp
 
 ## connect_proxy
 
-`syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port)`
+`syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)`
 
 Attempts to connect to the web server through the given proxy server. The method accepts the following arguments:
 
@@ -172,6 +172,7 @@ Attempts to connect to the web server through the given proxy server. The method
 * `scheme` - The protocol to use between the proxy server and the remote host (`http` or `https`). If `https` is specified as the scheme, `connect_proxy()` makes a `CONNECT` request to establish a TCP tunnel to the remote host through the proxy server.
 * `host` - The hostname of the remote host to connect to.
 * `port` - The port of the remote host to connect to.
+* `proxy_authorization` - The `Proxy-Authorization` header value sent to the proxy server via `CONNECT` when the `scheme` is `https`.
 
 If an error occurs during the connection attempt, this method returns `nil` with a string describing the error. If the connection was successfully established, the method returns `1`.
 
@@ -221,7 +222,9 @@ In case of success, returns `1`. In case of errors, returns `nil, err`. In the c
 Configure an http proxy to be used with this client instance. The `opts` is a table that accepts the following fields:
 
 * `http_proxy` - an URI to a proxy server to be used with http requests
+* `http_proxy_authorization` - a default `Proxy-Authorization` header value to be used with `http_proxy`, e.g. `Basic ZGVtbzp0ZXN0`, which will be overriden if the `Proxy-Authorization` request header is present.
 * `https_proxy` - an URI to a proxy server to be used with https requests
+* `https_proxy_authorization` - as `http_proxy_authorization` but for use with `https_proxy`.
 * `no_proxy` - a comma separated list of hosts that should not be proxied.
 
 Note that proxy options are only applied when using the high-level `request_uri()` API.

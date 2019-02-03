@@ -26,6 +26,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: get_proxy_uri returns nil if proxy is not configured
 --- http_config eval: $::HttpConfig
 --- config
@@ -43,6 +44,8 @@ nil
 --- no_error_log
 [error]
 [warn]
+
+
 
 === TEST 2: get_proxy_uri matches no_proxy hosts correctly
 --- http_config eval: $::HttpConfig
@@ -111,6 +114,8 @@ scheme: http, host: notexample.com, no_proxy: example.com, proxy_uri: http://htt
 [error]
 [warn]
 
+
+
 === TEST 3: get_proxy_uri returns correct proxy URIs for http and https URIs
 --- http_config eval: $::HttpConfig
 --- config
@@ -157,6 +162,8 @@ scheme: https, host: example.com, http_proxy: http_proxy, https_proxy: nil, prox
 [error]
 [warn]
 
+
+
 === TEST 4: request_uri uses http_proxy correctly for non-standard destination ports
 --- http_config
     lua_package_path "$TEST_NGINX_PWD/lib/?.lua;;";
@@ -199,6 +206,8 @@ GET /lua
 --- no_error_log
 [error]
 [warn]
+
+
 
 === TEST 5: request_uri uses http_proxy correctly for standard destination port
 --- http_config
@@ -246,6 +255,8 @@ GET /lua
 [error]
 [warn]
 
+
+
 === TEST 6: request_uri makes a proper CONNECT request when proxying https resources
 --- http_config eval: $::HttpConfig
 --- config
@@ -281,6 +292,220 @@ GET /lua
 --- tcp_listen: 12345
 --- tcp_query eval
 qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Host: 127.0.0.1:443\r\n.*/s
+
+# The reply cannot be successful or otherwise the client would start
+# to do a TLS handshake with the proxied host and that we cannot
+# do with these sockets
+--- tcp_reply
+HTTP/1.1 403 Forbidden
+Connection: close
+
+--- request
+GET /lua
+--- error_code: 403
+--- no_error_log
+[error]
+[warn]
+
+
+
+=== TEST 7: request_uri uses http_proxy_authorization option
+--- http_config
+    lua_package_path "$TEST_NGINX_PWD/lib/?.lua;;";
+    error_log logs/error.log debug;
+    resolver 8.8.8.8;
+    server {
+        listen *:8080;
+
+        location / {
+            content_by_lua_block {
+                ngx.print(ngx.var.http_proxy_authorization or "no-header")
+            }
+        }
+    }
+--- config
+    location /lua {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:8080",
+                http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
+                https_proxy = "http://127.0.0.1:8080",
+                https_proxy_authorization = "Basic ZGVtbzpwYXNz"
+            })
+
+            -- request should go to the proxy server
+            local res, err = httpc:request_uri("http://127.0.0.1/")
+            if not res then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            -- the proxy echoed the proxy authorization header
+            -- to the test harness
+            ngx.status = res.status
+            ngx.say(res.body)
+        }
+    }
+--- request
+GET /lua
+--- response_body
+Basic ZGVtbzp0ZXN0
+--- no_error_log
+[error]
+[warn]
+
+
+
+=== TEST 8: request_uri uses https_proxy_authorization option
+--- http_config eval: $::HttpConfig
+--- config
+    location /lua {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:12345",
+                http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
+                https_proxy = "http://127.0.0.1:12345",
+                https_proxy_authorization = "Basic ZGVtbzpwYXNz"
+            })
+
+            -- Slight Hack: temporarily change the module global user agent to make it
+            -- predictable for this test case
+            local ua = http._USER_AGENT
+            http._USER_AGENT = "test_ua"
+            local res, err = httpc:request_uri("https://127.0.0.1/target?a=1&b=2")
+            http._USER_AGENT = ua
+
+            if not err then
+                -- The proxy request should fail as the TCP server listening returns
+                -- 403 response. We cannot really test the success case here as that
+                -- would require an actual reverse proxy to be implemented through
+                -- the limited functionality we have available in the raw TCP sockets
+                ngx.log(ngx.ERR, "unexpected success")
+                return
+            end
+
+            ngx.status = 403
+            ngx.say(err)
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_query eval
+qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzpwYXNz\r\n.*Host: 127.0.0.1:443\r\n.*/s
+
+# The reply cannot be successful or otherwise the client would start
+# to do a TLS handshake with the proxied host and that we cannot
+# do with these sockets
+--- tcp_reply
+HTTP/1.1 403 Forbidden
+Connection: close
+
+--- request
+GET /lua
+--- error_code: 403
+--- no_error_log
+[error]
+[warn]
+
+
+
+=== TEST 9: request_uri does not use http_proxy_authorization option when overridden
+--- http_config
+    lua_package_path "$TEST_NGINX_PWD/lib/?.lua;;";
+    error_log logs/error.log debug;
+    resolver 8.8.8.8;
+    server {
+        listen *:8080;
+
+        location / {
+            content_by_lua_block {
+                ngx.print(ngx.var.http_proxy_authorization or "no-header")
+            }
+        }
+    }
+--- config
+    location /lua {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:8080",
+                http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
+                https_proxy = "http://127.0.0.1:8080",
+                https_proxy_authorization = "Basic ZGVtbzpwYXNz"
+            })
+
+            -- request should go to the proxy server
+            local res, err = httpc:request_uri("http://127.0.0.1/", {
+                headers = {
+                    ["Proxy-Authorization"] = "Basic ZGVtbzp3b3Jk"
+                }
+            })
+            if not res then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            -- the proxy echoed the proxy authorization header
+            -- to the test harness
+            ngx.status = res.status
+            ngx.say(res.body)
+        }
+    }
+--- request
+GET /lua
+--- response_body
+Basic ZGVtbzp3b3Jk
+--- no_error_log
+[error]
+[warn]
+
+
+
+=== TEST 10: request_uri does not use https_proxy_authorization option when overridden
+--- http_config eval: $::HttpConfig
+--- config
+    location /lua {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:set_proxy_options({
+                http_proxy = "http://127.0.0.1:12345",
+                http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
+                https_proxy = "http://127.0.0.1:12345",
+                https_proxy_authorization = "Basic ZGVtbzpwYXNz"
+            })
+
+            -- Slight Hack: temporarily change the module global user agent to make it
+            -- predictable for this test case
+            local ua = http._USER_AGENT
+            http._USER_AGENT = "test_ua"
+            local res, err = httpc:request_uri("https://127.0.0.1/target?a=1&b=2", {
+                headers = {
+                    ["Proxy-Authorization"] = "Basic ZGVtbzp3b3Jk"
+                }
+            })
+            http._USER_AGENT = ua
+
+            if not err then
+                -- The proxy request should fail as the TCP server listening returns
+                -- 403 response. We cannot really test the success case here as that
+                -- would require an actual reverse proxy to be implemented through
+                -- the limited functionality we have available in the raw TCP sockets
+                ngx.log(ngx.ERR, "unexpected success")
+                return
+            end
+
+            ngx.status = 403
+            ngx.say(err)
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_query eval
+qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzp3b3Jk\r\n.*Host: 127.0.0.1:443\r\n.*/s
 
 # The reply cannot be successful or otherwise the client would start
 # to do a TLS handshake with the proxied host and that we cannot
