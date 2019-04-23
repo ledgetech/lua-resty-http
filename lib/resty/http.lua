@@ -301,13 +301,16 @@ local function _format_request(params)
 
     -- Append headers
     for key, values in pairs(headers) do
-        if type(values) ~= "table" then
-            values = {values}
-        end
-
         key = tostring(key)
-        for _, value in pairs(values) do
-            req[c] = key .. ": " .. tostring(value) .. "\r\n"
+
+        if type(values) == "table" then
+            for _, value in pairs(values) do
+                req[c] = key .. ": " .. tostring(value) .. "\r\n"
+                c = c + 1
+            end
+
+        else
+            req[c] = key .. ": " .. tostring(values) .. "\r\n"
             c = c + 1
         end
     end
