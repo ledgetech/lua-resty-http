@@ -22,6 +22,7 @@ local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local ngx_var = ngx.var
+local ngx_flush = ngx.flush
 local ngx_print = ngx.print
 local ngx_header = ngx.header
 local co_yield = coroutine.yield
@@ -1009,6 +1010,13 @@ function _M.proxy_response(_, response, chunksize)
             if not res then
                 ngx_log(ngx_ERR, err)
                 break
+            else
+              -- flush, e.g., for server-sent event use cases
+              local fres, ferr = ngx_flush()
+              if not fres then
+                 ngx_log(ngx_ERR, ferr)
+                 break
+              end
             end
         end
     until not chunk

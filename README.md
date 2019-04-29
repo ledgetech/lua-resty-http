@@ -10,7 +10,7 @@ Production ready.
 
 * HTTP 1.0 and 1.1
 * SSL
-* Streaming interface to the response body, for predictable memory usage
+* Streaming interface to the response body, for predictable memory usage or server-sent events
 * Alternative simple interface for singleshot requests without manual connection step
 * Chunked and non-chunked transfer encodings
 * Keepalive
