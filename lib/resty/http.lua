@@ -126,12 +126,20 @@ local DEFAULT_PARAMS = {
 }
 
 
+local DEBUG = false
+
+
 function _M.new(_)
     local sock, err = ngx_socket_tcp()
     if not sock then
         return nil, err
     end
     return setmetatable({ sock = sock, keepalive = true }, mt)
+end
+
+
+function _M.debug(d)
+    DEBUG = (d == true)
 end
 
 
@@ -647,7 +655,7 @@ function _M.send_request(self, params)
 
     -- Format and send request
     local req = _format_request(params)
-    ngx_log(ngx_DEBUG, "\n", req)
+    if DEBUG then ngx_log(ngx_DEBUG, "\n", req) end
     local bytes, err = sock:send(req)
 
     if not bytes then
