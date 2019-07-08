@@ -57,7 +57,7 @@ nil
 
             -- helper that verifies get_proxy_uri works correctly with the given
             -- scheme, host and no_proxy list
-            function test_no_proxy(scheme, host, no_proxy)
+            local function test_no_proxy(scheme, host, no_proxy)
                 httpc:set_proxy_options({
                     http_proxy = "http://http_proxy.example.com",
                     https_proxy = "http://https_proxy.example.com",
@@ -126,7 +126,7 @@ scheme: http, host: notexample.com, no_proxy: example.com, proxy_uri: http://htt
 
             -- helper that configures the proxy opts as proived and checks what
             -- get_proxy_uri says for the given scheme / host pair
-            function test_get_proxy_uri(scheme, host, http_proxy, https_proxy)
+            local function test_get_proxy_uri(scheme, host, http_proxy, https_proxy)
                 httpc:set_proxy_options({
                     http_proxy = http_proxy,
                     https_proxy = https_proxy

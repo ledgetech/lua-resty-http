@@ -19,6 +19,8 @@ our $HttpConfig = qq{
             jit.off()
             require("luacov.runner").init()
         end
+
+        require("resty.http").debug(true)
     }
 };
 
@@ -89,6 +91,7 @@ Host: www.google.com
 --- config
     location /lua {
         content_by_lua '
+            require("resty.http").debug(true)
             local http = require "resty.http"
             local httpc = http.new()
 
@@ -117,6 +120,7 @@ Host: 127.0.0.1:8080
 --- config
     location /lua {
         content_by_lua '
+            require("resty.http").debug(true)
             local http = require "resty.http"
             local httpc = http.new()
 
@@ -178,6 +182,7 @@ Unable to generate a useful Host header for a unix domain socket. Please provide
 --- config
     location /lua {
         content_by_lua '
+            require("resty.http").debug(true)
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({

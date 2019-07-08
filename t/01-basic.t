@@ -304,7 +304,7 @@ bad uri: http:///example.com
         content_by_lua '
             local http = require("resty.http").new()
 
-            function test_uri(uri)
+            local function test_uri(uri)
                 local scheme, host, port, path, query = unpack(http:parse_uri(uri, false))
                 ngx.say("scheme: ", scheme, ", host: ", host, ", port: ", port, ", path: ", path, ", query: ", query)
             end
@@ -342,7 +342,7 @@ scheme: http, host: example.com, port: 80, path: /foo/bar, query: a=1&b=2
         content_by_lua '
             local http = require("resty.http").new()
 
-            function test_uri(uri)
+            local function test_uri(uri)
                 local scheme, host, port, path, query = unpack(http:parse_uri(uri))
                 ngx.say("scheme: ", scheme, ", host: ", host, ", port: ", port, ", path: ", path)
             end
