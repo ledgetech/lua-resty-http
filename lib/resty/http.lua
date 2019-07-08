@@ -55,6 +55,13 @@ local HOP_BY_HOP_HEADERS = {
 }
 
 
+local EXPECTING_BODY = {
+    POST  = true,
+    PUT   = true,
+    PATCH = true,
+}
+
+
 -- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
 -- be resumed. This protects user code from inifite loops when doing things like
 -- repeat
@@ -603,8 +610,13 @@ function _M.send_request(self, params)
     end
 
     -- Ensure minimal headers are set
-    if type(body) == 'string' and not headers["Content-Length"] then
-        headers["Content-Length"] = #body
+
+    if not headers["Content-Length"] then
+        if type(body) == 'string' then
+            headers["Content-Length"] = #body
+        elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
+            headers["Content-Length"] = 0
+        end
     end
     if not headers["Host"] then
         if (str_sub(self.host, 1, 5) == "unix:") then

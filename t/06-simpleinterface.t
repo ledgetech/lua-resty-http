@@ -267,3 +267,72 @@ GET /a
 nil closed
 --- error_log
 lua tcp socket read timed out
+
+
+=== TEST 7: Content-Length is set on POST/PUT/PATCH requests when body is absent
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            for i, method in ipairs({ "POST", "PUT", "PATCH" }) do
+              local http = require "resty.http"
+              local httpc = http.new()
+              local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b", { method = method })
+
+              if not res then
+                  ngx.log(ngx.ERR, err)
+              end
+
+              if i == 1 then
+                ngx.status = res.status
+              end
+
+              ngx.print(res.body)
+            end
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say(ngx.req.get_method(), " Content-Length: ", ngx.req.get_headers()["Content-Length"])
+        ';
+    }
+--- request
+GET /a
+--- response_body
+POST Content-Length: 0
+PUT Content-Length: 0
+PATCH Content-Length: 0
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 8: Content-Length is not set on GET requests when body is absent
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b")
+
+            if not res then
+                ngx.log(ngx.ERR, err)
+            end
+            ngx.status = res.status
+            ngx.print(res.body)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("Content-Length: ", type(ngx.req.get_headers()["Content-Length"]))
+        ';
+    }
+--- request
+GET /a
+--- response_body
+Content-Length: nil
+--- no_error_log
+[error]
+[warn]
+
