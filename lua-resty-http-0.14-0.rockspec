@@ -1,12 +1,12 @@
 package = "lua-resty-http"
 version = "0.14-0"
 source = {
-   url = "git://github.com/pintsized/lua-resty-http",
+   url = "git://github.com/ledgetech/lua-resty-http",
    tag = "v0.14"
 }
 description = {
    summary = "Lua HTTP client cosocket driver for OpenResty / ngx_lua.",
-   homepage = "https://github.com/pintsized/lua-resty-http",
+   homepage = "https://github.com/ledgetech/lua-resty-http",
    license = "2-clause BSD",
    maintainer = "James Hurst <james@pintsized.co.uk>"
 }
