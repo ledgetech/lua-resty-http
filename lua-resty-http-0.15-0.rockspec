@@ -1,8 +1,8 @@
 package = "lua-resty-http"
-version = "0.14-0"
+version = "0.15-0"
 source = {
    url = "git://github.com/ledgetech/lua-resty-http",
-   tag = "v0.14"
+   tag = "v0.15"
 }
 description = {
    summary = "Lua HTTP client cosocket driver for OpenResty / ngx_lua.",
