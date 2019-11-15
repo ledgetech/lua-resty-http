@@ -26,7 +26,7 @@ no_long_string();
 run_tests();
 
 __DATA__
-=== TEST 1 Test that pipelined reqests can be read correctly.
+=== TEST 1 Test that pipelined requests can be read correctly.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
