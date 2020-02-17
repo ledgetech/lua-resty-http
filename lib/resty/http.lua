@@ -1112,7 +1112,7 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorizati
         return nil, err
     end
 
-    if scheme == "https" then
+    if scheme == "https" and self.sock:getreusedtimes() == 0 then
         -- Make a CONNECT request to create a tunnel to the destination through
         -- the proxy. The request-target and the Host header must be in the
         -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
