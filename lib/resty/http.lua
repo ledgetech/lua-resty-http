@@ -163,35 +163,68 @@ function _M.set_timeouts(self, connect_timeout, send_timeout, read_timeout)
 end
 
 
-function _M.ssl_handshake(self, ...)
+function _M.ssl_handshake(self, ctx, ssl_server_name, ssl_verify, ...)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
+    end
+
+    if self.ssl_poolname_key and
+       self.ssl_poolname_key ~= (ssl_server_name or "") .. (ssl_verify and ":true" or "") then
+        return nil, "ssl_verify and ssl_server_name must be the same as provided to connect()"
     end
 
     self.ssl = true
 
-    return sock:sslhandshake(...)
+    return sock:sslhandshake(ctx, ssl_server_name, ssl_verify, ...)
 end
 
 
-function _M.connect(self, ...)
+function _M.connect(self, host, port, options)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
     end
 
-    self.host = select(1, ...)
-    self.port = select(2, ...)
-
     -- If port is not a number, this is likely a unix domain socket connection.
-    if type(self.port) ~= "number" then
-        self.port = nil
+    if type(port) ~= "number" then
+        options = port
+        port = nil
     end
 
+    self.host = host
+    self.port = port
     self.keepalive = true
 
-    return sock:connect(...)
+    local opts
+    if options then
+        opts = {
+            pool_size = options.pool_size,
+            backlog = options.backlog,
+        }
+    else
+        opts = {}
+    end
+
+    -- store the properties to validate that the handshake does the-right-thing TM
+    if (options.ssl_server_name or options.ssl_verify) and not options.pool then
+        self.ssl_poolname_key = (options.ssl_server_name or "") ..
+                                (options.ssl_verify and ":true" or "")
+    else
+        self.ssl_poolname_key = nil
+    end
+
+    -- generate a poolname to be unique within ssl params
+    opts.pool = options.pool or host ..
+                (port and ":" .. port or "") ..
+                (options.ssl_server_name and ":" .. options.ssl_server_name or "") ..
+                (options.ssl_verify and ":true" or "")
+
+    if port then
+        return sock:connect(host, port, opts)
+    else
+        return sock:connect(host, opts)
+    end
 end
 
 
@@ -861,9 +894,9 @@ function _M.request_uri(self, uri, params)
             end
         end
 
-        c, err = self:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)
+        c, err = self:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization, params)
     else
-        c, err = self:connect(host, port)
+        c, err = self:connect(host, port, params)
     end
 
     if not c then
@@ -897,9 +930,11 @@ function _M.request_uri(self, uri, params)
                 end
             end
         elseif scheme == "https" then
-            -- don't keep this connection alive as the next request could target
-            -- any host and re-using the proxy tunnel for that is not possible
-            self.keepalive = false
+            -- only keep this connection alive if we have a poolname specified that
+            -- includes the ssl-properties to safely do so
+            if not self.ssl_poolname_key then
+                self.keepalive = false
+            end
         end
 
         -- self:connect_uri() set the host and port to point to the proxy server. As
@@ -910,7 +945,7 @@ function _M.request_uri(self, uri, params)
         self.port = port
     end
 
-    if scheme == "https" then
+    if scheme == "https" then -- check on reusedtimes???
         local verify = true
 
         if params.ssl_verify == false then
@@ -1091,7 +1126,7 @@ function _M.get_proxy_uri(self, scheme, host)
 end
 
 
-function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorization)
+function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorization, options)
     -- Parse the provided proxy URI
     local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
     if not parsed_proxy_uri then
@@ -1105,9 +1140,23 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorizati
         return nil, "protocol " .. proxy_scheme .. " not supported for proxy connections"
     end
 
+    local opts
+    if options then
+        opts = {
+            pool_size = options.pool_size,
+            backlog = options.backlog,
+        }
+    else
+        opts = {}
+    end
+    -- construct a pool name unique by the proxy used (incl. auth) and the
+    -- target server. Such that even ssl connections can be pooled and reused.
+    opts.pool = options.pool or scheme .. ":" .. host .. ":" .. tostring(port) .. ":" ..
+                                proxy_uri .. ":" .. tostring(proxy_authorization)
+
     -- Make the connection to the given proxy
     local proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
-    local c, err = self:connect(proxy_host, proxy_port)
+    local c, err = self:connect(proxy_host, proxy_port, opts)
     if not c then
         return nil, err
     end

@@ -159,12 +159,15 @@ Before actually resolving the host name and connecting to the remote backend, th
 
 An optional Lua table can be specified as the last argument to this method to specify various connect options:
 
-* `pool`
-: Specifies a custom name for the connection pool being used. If omitted, then the connection pool name will be generated from the string template `<host>:<port>` or `<unix-socket-path>`.
+* `ssl_server_name`: the SNI for the ssl connection intended to be used. Only relevant if a sslhandshake will follow on the connect and `pool` is not set.
+* `ssl_verify`: whether to verify the cert, will be using `ssl_server_name` as the name to verify. Only relevant if a sslhandshake will follow on the connect and `pool` is not set.
+* `pool`: Specifies a custom name for the connection pool being used. If omitted, then the connection pool name will be generated from the string template `<host>:<port>[:<ssl_server_name>][:<ssl_verify>]` or `<unix-socket-path>[:<ssl_server_name>][:<ssl_verify>]`.
+
+Note: the `ssl_*` properties are only used to generate the proper poolname for the connection.
 
 ## connect_proxy
 
-`syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)`
+`syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization, options_table?)`
 
 Attempts to connect to the web server through the given proxy server. The method accepts the following arguments:
 
@@ -173,6 +176,9 @@ Attempts to connect to the web server through the given proxy server. The method
 * `host` - The hostname of the remote host to connect to.
 * `port` - The port of the remote host to connect to.
 * `proxy_authorization` - The `Proxy-Authorization` header value sent to the proxy server via `CONNECT` when the `scheme` is `https`.
+* `options_table` - Options table see `connect()`.
+
+Note: the poolname generated if `pool` is omitted from the `options_table` will now include the `proxy_uri`, and `proxy_authorization` to create a proper poolname.
 
 If an error occurs during the connection attempt, this method returns `nil` with a string describing the error. If the connection was successfully established, the method returns `1`.
 
