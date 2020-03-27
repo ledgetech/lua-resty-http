@@ -174,8 +174,24 @@ function _M.ssl_handshake(self, ...)
     return sock:sslhandshake(...)
 end
 
+do
+    local aio_connect = require "resty.http_connect"
+    -- Function signatures to support:
+    -- ok, err = httpc:connect(options_table)
+    -- ok, err = httpc:connect(host, port, options_table?)
+    -- ok, err = httpc:connect("unix:/path/to/unix.sock", options_table?)
+    function _M.connect(self, options, ...)
+        if type(options) == "table" then
+            -- all-in-one interface
+            return aio_connect(self, options)
+        else
+            -- backward compatible
+            return self:tcp_only_connect(options, ...)
+        end
+    end
+end
 
-function _M.connect(self, ...)
+function _M.tcp_only_connect(self, ...)
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
@@ -863,7 +879,7 @@ function _M.request_uri(self, uri, params)
 
         c, err = self:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)
     else
-        c, err = self:connect(host, port)
+        c, err = self:tcp_only_connect(host, port)
     end
 
     if not c then
@@ -1107,7 +1123,7 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorizati
 
     -- Make the connection to the given proxy
     local proxy_host, proxy_port = parsed_proxy_uri[2], parsed_proxy_uri[3]
-    local c, err = self:connect(proxy_host, proxy_port)
+    local c, err = self:tcp_only_connect(proxy_host, proxy_port)
     if not c then
         return nil, err
     end

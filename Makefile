@@ -10,7 +10,7 @@ export PATH := $(OPENRESTY_PREFIX)/nginx/sbin:$(PATH)
 PROVE=TEST_NGINX_NO_SHUFFLE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
 
 # Keep in sync with .luacov, so that we show the right amount of output
-LUACOV_NUM_MODULES ?= 2
+LUACOV_NUM_MODULES ?= 3
 
 .PHONY: all test install
 
