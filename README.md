@@ -151,13 +151,57 @@ Creates the http object. In case of failures, returns `nil` and a string describ
 
 ## connect
 
+`syntax: ok, err = httpc:connect(aio_options_table)`
+
 `syntax: ok, err = httpc:connect(host, port, options_table?)`
 
 `syntax: ok, err = httpc:connect("unix:/path/to/unix.sock", options_table?)`
 
 Attempts to connect to the web server.
 
+### all-in-one connect
+
+This version of connect uses the `aio_options` signature above. For the
+other signatures see the [TCP only connect](#tcp-only-connect) below.
+
+This version of `connect` will connect to the remote end while incorporating the
+following activities:
+
+- TCP connect
+- SSL handshake
+- HTTP-proxy
+
+Whilst doing this it will also create a distinct pool name that is safe to use
+with SSL and/or Proxy based connections.
+
+The options table has the following fields:
+
+* `scheme`: scheme to use, or nil for unix domain socket
+* `host`: target machine, or a unix domain socket
+* `port`: port on target machine, will default to `80` or `443` based on scheme
+* `pool`: connection pool name. Option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect),
+  except that the default will become a pool name constructed including all the
+  SSL/Proxy properties to make it safe to re-use. When in doubt, leave it blank!
+* `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `ssl`: sub-table. **NOTE**: ssl will be used when either `scheme == "https"`, or when `ssl` is truthy
+    * `server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+    * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
+    * `ctx`: NOT supported
+
+* `proxy`: sub-table. **NOTE**: a proxy will be used only if `proxy.uri` is provided
+    * `uri`: uri of the proxy to use, eg. `"http://myproxy.internal:123"`
+    * `authorization`: a "Proxy-Authorization" header value to be used
+    * `no_proxy`: comma separated string of domains bypassing proxy
+
+
+### TCP only connect
+
 Before actually resolving the host name and connecting to the remote backend, this method will always look up the connection pool for matched idle connections created by previous calls of this method.
+
+NOTE: the default pool name will only incorporate IP and port information so is
+unsafe to use in case of SSL and/or Proxy connections. Specify your own pool
+name or use the [`all-in-one`](#all-in-one-connect) above.
 
 An optional Lua table can be specified as the last argument to this method to specify various connect options:
 
