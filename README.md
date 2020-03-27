@@ -262,7 +262,6 @@ The `params` table accepts the following fields:
 * `query` The query string, presented as either a literal string or Lua table..
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
-* `ssl_verify` Verify SSL cert matches hostname
 
 When the request is successful, `res` will contain the following fields:
 
