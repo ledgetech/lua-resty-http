@@ -67,7 +67,7 @@ server {
         headers = {
           ["Content-Type"] = "application/x-www-form-urlencoded",
         },
-        keepalive_timeout = 60,
+        keepalive_timeout = 60000,
         keepalive_pool = 10
       })
 
