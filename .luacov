@@ -1,0 +1,4 @@
+modules = {
+    ["http"] = "lib/resty/http.lua",
+    ["http_headers"] = "lib/resty/http_headers.lua",
+}

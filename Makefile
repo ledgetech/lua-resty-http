@@ -1,10 +1,16 @@
 OPENRESTY_PREFIX=/usr/local/openresty
 
-PREFIX ?=          /usr/local
+PREFIX 			?= /usr/local
 LUA_INCLUDE_DIR ?= $(PREFIX)/include
-LUA_LIB_DIR ?=     $(PREFIX)/lib/lua/$(LUA_VERSION)
-INSTALL ?= install
-TEST_FILE ?= t
+LUA_LIB_DIR     ?= $(PREFIX)/lib/lua/$(LUA_VERSION)
+INSTALL         ?= install
+TEST_FILE       ?= t
+
+export PATH := $(OPENRESTY_PREFIX)/nginx/sbin:$(PATH)
+PROVE=TEST_NGINX_NO_SHUFFLE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
+
+# Keep in sync with .luacov, so that we show the right amount of output
+LUACOV_NUM_MODULES ?= 2
 
 .PHONY: all test install
 
@@ -15,14 +21,13 @@ install: all
 	$(INSTALL) lib/resty/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/resty/
 
 test: all
-	PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH TEST_NGINX_NO_SHUFFLE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
+	$(PROVE)
 
 coverage: all
-	-@echo "Cleaning stats"
 	@rm -f luacov.stats.out
-	PATH=$(OPENRESTY_PREFIX)/nginx/sbin:$$PATH TEST_NGINX_NO_SHUFFLE=1 TEST_COVERAGE=1 prove -I../test-nginx/lib -r $(TEST_FILE)
+	TEST_COVERAGE=1 $(PROVE)
 	@luacov
-	@tail -10 luacov.report.out
+	@tail -$$(( $(LUACOV_NUM_MODULES) + 5)) luacov.report.out
 
 check:
 	luacheck lib
