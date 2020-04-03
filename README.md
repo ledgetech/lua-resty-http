@@ -6,6 +6,8 @@ Lua HTTP client cosocket driver for [OpenResty](http://openresty.org/) / [ngx_lu
 
 Production ready.
 
+[![Build Status](https://travis-ci.org/ledgetech/lua-resty-http.svg?branch=master)](https://travis-ci.org/ledgetech/lua-resty-http)
+
 # Features
 
 * HTTP 1.0 and 1.1
