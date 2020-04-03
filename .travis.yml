@@ -2,4 +2,4 @@ services:
     - docker
 
 script:
-    - docker run --rm -u http -v "$PWD:/lua-resty-http" -w /lua-resty-http ledgetech/test-runner:latest /bin/bash -c "make coverage"
+    - docker run --rm -v "$PWD:/lua-resty-http" -w /lua-resty-http ledgetech/test-runner:latest /bin/bash -c "make coverage"
