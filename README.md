@@ -241,7 +241,7 @@ If the current connection does not come from the built-in connection pool, then 
 
 ## close
 
-`syntax: ok, err = http:close()`
+`syntax: ok, err = httpc:close()`
 
 Closes the current connection and returns the status.
 
