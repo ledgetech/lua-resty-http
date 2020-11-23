@@ -63,7 +63,7 @@ local EXPECTING_BODY = {
 
 
 -- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
--- be resumed. This protects user code from inifite loops when doing things like
+-- be resumed. This protects user code from infinite loops when doing things like
 -- repeat
 --   local chunk, err = res.body_reader()
 --   if chunk then -- <-- This could be a string msg in the core wrap function.
@@ -631,7 +631,7 @@ function _M.send_request(self, params)
             return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
         end
         -- If we have a port (i.e. not connected to a unix domain socket), and this
-        -- port is non-standard, append it to the Host heaer.
+        -- port is non-standard, append it to the Host header.
         if self.port then
             if self.ssl and self.port ~= 443 then
                 headers["Host"] = self.host .. ":" .. self.port
