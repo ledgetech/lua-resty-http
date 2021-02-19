@@ -206,6 +206,7 @@ function _M.tcp_only_connect(self, ...)
     end
 
     self.keepalive = true
+    self.ssl = false
 
     return sock:connect(...)
 end

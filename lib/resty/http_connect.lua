@@ -202,6 +202,7 @@ local function connect(self, options)
     self.host = host
     self.port = port
     self.keepalive = true
+    self.ssl = ssl
 
     return true
 end
