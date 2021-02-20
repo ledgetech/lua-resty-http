@@ -6,7 +6,7 @@ local ngx_re_find = ngx.re.find
 A connection function that incorporates:
   - tcp connect
   - ssl handshake
-  - http proxy (options to be set using "set_proxy_options")
+  - http proxy
 Due to this it will be better at setting up a socket pool where connections can
 be kept alive.
 
@@ -27,6 +27,8 @@ client:connect {
         ssl_verify = true,  -- defaults to true
         ctx = nil,          -- NOT supported
     },
+
+    proxy_opts,             -- proxy opts, defaults to global proxy options
 }
 ]]
 local function connect(self, options)
@@ -76,7 +78,7 @@ local function connect(self, options)
 
     -- proxy related settings
     local proxy, proxy_uri, proxy_authorization, proxy_host, proxy_port
-    proxy = self.proxy_opts
+    proxy = options.proxy_opts or self.proxy_opts
 
     if proxy then
         if request_scheme == "https" then
