@@ -6,7 +6,7 @@ local ngx_re_find = ngx.re.find
 A connection function that incorporates:
   - tcp connect
   - ssl handshake
-  - http proxy
+  - http proxy (options to be set using "set_proxy_options")
 Due to this it will be better at setting up a socket pool where connections can
 be kept alive.
 
@@ -25,12 +25,6 @@ client:connect {
         server_name = nil,  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
         ssl_verify = true,  -- defaults to true
         ctx = nil,          -- NOT supported
-    },
-
-    proxy = {               -- proxy will be used only if "proxy.uri" is provided
-        uri = "http://myproxy.internal:123", -- uri of the proxy
-        authorization = nil, -- a "Proxy-Authorization" header value to be used
-        no_proxy = nil,      -- comma separated string of domains bypassing proxy
     },
 }
 ]]
@@ -77,7 +71,21 @@ local function connect(self, options)
 
     -- proxy related settings
     local proxy, proxy_uri, proxy_uri_t, proxy_authorization, proxy_host, proxy_port
-    proxy = options.proxy
+    proxy = self.proxy_opts
+
+    if proxy then
+        if proxy_scheme == "https" then
+            proxy_uri = proxy.https_proxy
+            proxy_authorization = proxy.https_proxy_authorization
+        else
+            proxy_uri = proxy.http_proxy
+            proxy_authorization = proxy.http_proxy_authorization
+        end
+        if not proxy_uri then
+            proxy = nil
+        end
+    end
+
     if proxy and proxy.no_proxy then
         -- Check if the no_proxy option matches this host. Implementation adapted
         -- from lua-http library (https://github.com/daurnimator/lua-http)
@@ -104,6 +112,8 @@ local function connect(self, options)
             repeat
                 if no_proxy_set[host] then
                     proxy = nil
+                    proxy_uri = nil
+                    proxy_authorization = nil
                     break
                 end
 
@@ -115,8 +125,6 @@ local function connect(self, options)
     end
 
     if proxy then
-        proxy_uri = proxy.uri  -- full uri to proxy (only http supported)
-        proxy_authorization = proxy.authorization -- auth to send via CONNECT
         proxy_uri_t, err = self:parse_uri(proxy_uri)
         if not proxy_uri_t then
             return nil, err
