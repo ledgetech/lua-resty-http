@@ -218,6 +218,8 @@ local function connect(self, options)
     self.port = request_port
     self.keepalive = true
     self.ssl = ssl
+    -- set only for http, https has already been handled
+    self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
 
     return true
 end
