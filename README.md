@@ -169,7 +169,7 @@ following activities:
 
 - TCP connect
 - SSL handshake
-- HTTP-proxy
+- HTTP-proxy (options to be set using [set_proxy_options](#set_proxy_options))
 
 Whilst doing this it will also create a distinct pool name that is safe to use
 with SSL and/or Proxy based connections.
@@ -188,11 +188,6 @@ The options table has the following fields:
     * `server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
     * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
     * `ctx`: NOT supported
-
-* `proxy`: sub-table. **NOTE**: a proxy will be used only if `proxy.uri` is provided
-    * `uri`: uri of the proxy to use, eg. `"http://myproxy.internal:123"`
-    * `authorization`: a "Proxy-Authorization" header value to be used
-    * `no_proxy`: comma separated string of domains bypassing proxy
 
 
 ### TCP only connect
@@ -270,10 +265,10 @@ Configure an http proxy to be used with this client instance. The `opts` is a ta
 * `http_proxy` - an URI to a proxy server to be used with http requests
 * `http_proxy_authorization` - a default `Proxy-Authorization` header value to be used with `http_proxy`, e.g. `Basic ZGVtbzp0ZXN0`, which will be overriden if the `Proxy-Authorization` request header is present.
 * `https_proxy` - an URI to a proxy server to be used with https requests
-* `https_proxy_authorization` - as `http_proxy_authorization` but for use with `https_proxy`.
+* `https_proxy_authorization` - as `http_proxy_authorization` but for use with `https_proxy` (since with https the authorisation is done when connecting, this one cannot be overridden by passing the `Proxy-Authorization` request header).
 * `no_proxy` - a comma separated list of hosts that should not be proxied.
 
-Note that proxy options are only applied when using the high-level `request_uri()` API.
+Note that proxy options are only applied when using the high-level `request_uri()` API, or when using the all-in-one connect.
 
 ## get_reused_times
 
