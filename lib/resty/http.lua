@@ -632,6 +632,9 @@ function _M.send_request(self, params)
         for k, v in pairs(params_headers) do
             headers[k] = v
         end
+        if not headers["Proxy-Authorization"] then
+            headers["Proxy-Authorization"] = self.http_proxy_auth
+        end
     end
 
     -- Ensure minimal headers are set
