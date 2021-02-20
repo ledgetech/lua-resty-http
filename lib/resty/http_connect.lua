@@ -23,6 +23,7 @@ client:connect {
 
     ssl = {                 -- ssl will be used when either scheme = https, or when ssl is truthy
         server_name = nil,  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
+        send_status_req = nil,
         ssl_verify = true,  -- defaults to true
         ctx = nil,          -- NOT supported
     },
@@ -51,12 +52,13 @@ local function connect(self, options)
     end
 
     -- ssl settings
-    local ssl, ssl_server_name, ssl_verify
+    local ssl, ssl_server_name, ssl_verify, send_status_req
     if request_scheme ~= "http" then
         -- either https or unix domain socket
         ssl = options.ssl
         if type(options.ssl) == "table" then
             ssl_server_name = ssl.server_name
+            send_status_req = ssl.send_status_req
             ssl_verify = (ssl.verify == nil) or (not not ssl.verify) -- default to true, and force to bool
             ssl = true
         else
@@ -205,7 +207,7 @@ local function connect(self, options)
 
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ok, err = self:ssl_handshake(nil, ssl_server_name, ssl_verify)
+        local ok, err = self:ssl_handshake(nil, ssl_server_name, ssl_verify, send_status_req)
         if not ok then
             self:close()
             return nil, err
