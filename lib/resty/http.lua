@@ -277,6 +277,9 @@ function _M.parse_uri(_, uri, query_in_path)
         -- If the URI is schemaless (i.e. //example.com) try to use our current
         -- request scheme.
         if not m[1] then
+            -- TODO: remove this in next major version. This is undeterministic
+            -- behaviour. Scheme should be a required property. Best case is to
+            -- detect based on port 80/443.
             local scheme = ngx_var.scheme
             if scheme == "http" or scheme == "https" then
                 m[1] = scheme
@@ -633,6 +636,10 @@ function _M.send_request(self, params)
             headers[k] = v
         end
         if not headers["Proxy-Authorization"] then
+            -- TODO: next major, change this to always override the provided
+            -- header. Can't do that yet because it would be breaking.
+            -- The connect method uses self.http_proxy_auth in the poolname so
+            -- that should be leading.
             headers["Proxy-Authorization"] = self.http_proxy_auth
         end
     end
@@ -876,6 +883,8 @@ function _M.request_uri(self, uri, params)
         if scheme == "https" then
             if params.headers and params.headers["Proxy-Authorization"] then
                 proxy_authorization = params.headers["Proxy-Authorization"]
+                -- TODO: this is https, so we connect to the proxy first, so the actual
+                -- request would not need the Auth header. So we should clear that.
             else
                 proxy_authorization = self.proxy_opts.https_proxy_authorization
             end
