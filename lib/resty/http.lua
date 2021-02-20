@@ -1053,6 +1053,8 @@ end
 
 
 function _M.set_proxy_options(self, opts)
+    -- TODO: parse and cache these options, instead of parsing them
+    -- on each request over and over again (lru-cache on module level)
     self.proxy_opts = tbl_copy(opts) -- Take by value
 end
 

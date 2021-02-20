@@ -35,21 +35,24 @@ local function connect(self, options)
     end
 
     local ok, err
-    local proxy_scheme = options.scheme -- scheme to use; http or https
-    local host = options.host -- remote host to connect to
-    local port = options.port -- remote port to connect to
-    local poolname = options.pool -- connection pool name to use
+
+    local request_scheme = options.scheme
+    local request_host = options.host
+    local request_port = options.port
+
+    local poolname = options.pool
     local pool_size = options.pool_size
     local backlog = options.backlog
-    if proxy_scheme and not port then
-        port = (proxy_scheme == "https" and 443 or 80)
-    elseif port and not proxy_scheme then
+
+    if request_scheme and not request_port then
+        request_port = (request_scheme == "https" and 443 or 80)
+    elseif request_port and not request_scheme then
         return nil, "'scheme' is required when providing a port"
     end
 
     -- ssl settings
     local ssl, ssl_server_name, ssl_verify
-    if proxy_scheme ~= "http" then
+    if request_scheme ~= "http" then
         -- either https or unix domain socket
         ssl = options.ssl
         if type(options.ssl) == "table" then
@@ -74,7 +77,7 @@ local function connect(self, options)
     proxy = self.proxy_opts
 
     if proxy then
-        if proxy_scheme == "https" then
+        if request_scheme == "https" then
             proxy_uri = proxy.https_proxy
             proxy_authorization = proxy.https_proxy_authorization
         else
@@ -94,6 +97,7 @@ local function connect(self, options)
             proxy = nil
 
         else
+            local host = request_host
             local no_proxy_set = {}
             -- wget allows domains in no_proxy list to be prefixed by "."
             -- e.g. no_proxy=.mit.edu
@@ -130,9 +134,10 @@ local function connect(self, options)
             return nil, err
         end
 
-        local p_scheme = proxy_uri_t[1]
-        if p_scheme ~= "http" then
-            return nil, "protocol " .. p_scheme .. " not supported for proxy connections"
+        local proxy_scheme = proxy_uri_t[1]
+        if proxy_scheme ~= "http" then
+            return nil, "protocol " .. tostring(proxy_scheme) ..
+                        " not supported for proxy connections"
         end
         proxy_host = proxy_uri_t[2]
         proxy_port = proxy_uri_t[3]
@@ -140,9 +145,9 @@ local function connect(self, options)
 
     -- construct a poolname unique within proxy and ssl info
     if not poolname then
-        poolname = (proxy_scheme or "")
-                   .. ":" .. host
-                   .. ":" .. tostring(port)
+        poolname = (request_scheme or "")
+                   .. ":" .. request_host
+                   .. ":" .. tostring(request_port)
                    .. ":" .. tostring(ssl)
                    .. ":" .. (ssl_server_name or "")
                    .. ":" .. tostring(ssl_verify)
@@ -159,12 +164,12 @@ local function connect(self, options)
             return nil, err
         end
 
-        if proxy and proxy_scheme == "https" and sock:getreusedtimes() == 0 then
+        if request_scheme == "https" and sock:getreusedtimes() == 0 then
             -- Make a CONNECT request to create a tunnel to the destination through
             -- the proxy. The request-target and the Host header must be in the
             -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
             -- 4.3.6 for more details about the CONNECT request
-            local destination = host .. ":" .. port
+            local destination = request_host .. ":" .. request_port
             local res, err = self:request({
                 method = "CONNECT",
                 path = destination,
@@ -183,16 +188,16 @@ local function connect(self, options)
             end
         end
 
-    elseif not port then
+    elseif not request_port then
         -- non-proxy, without port -> unix domain socket
-        ok, err = sock:connect(host, tcp_opts)
+        ok, err = sock:connect(request_host, tcp_opts)
         if not ok then
             return nil, err
         end
 
     else
         -- non-proxy, regular network tcp
-        ok, err = sock:connect(host, port, tcp_opts)
+        ok, err = sock:connect(request_host, request_port, tcp_opts)
         if not ok then
             return nil, err
         end
@@ -207,8 +212,8 @@ local function connect(self, options)
         end
     end
 
-    self.host = host
-    self.port = port
+    self.host = request_host
+    self.port = request_port
     self.keepalive = true
     self.ssl = ssl
 
