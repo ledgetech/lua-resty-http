@@ -75,7 +75,7 @@ local function connect(self, options)
     end
 
     -- proxy related settings
-    local proxy, proxy_uri, proxy_uri_t, proxy_authorization, proxy_host, proxy_port
+    local proxy, proxy_uri, proxy_authorization, proxy_host, proxy_port
     proxy = self.proxy_opts
 
     if proxy then
@@ -131,7 +131,7 @@ local function connect(self, options)
     end
 
     if proxy then
-        proxy_uri_t, err = self:parse_uri(proxy_uri)
+        local proxy_uri_t, err = self:parse_uri(proxy_uri)
         if not proxy_uri_t then
             return nil, err
         end
