@@ -186,6 +186,7 @@ The options table has the following fields:
 * `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 * `ssl`: sub-table. **NOTE**: ssl will be used when either `scheme == "https"`, or when `ssl` is truthy
     * `server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+    * `send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
     * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
     * `ctx`: NOT supported
 
