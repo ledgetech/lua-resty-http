@@ -156,7 +156,11 @@ local function connect(self, options)
                    .. ":" .. (ssl_server_name or "")
                    .. ":" .. tostring(ssl_verify)
                    .. ":" .. (proxy_uri or "")
-                   .. ":" .. (proxy_authorization or "")
+                   .. ":" .. (request_scheme == "https" and proxy_authorization or "")
+        -- in the above we only add the 'proxy_authorization' as part of the poolname
+        -- when the request is https. Because in that case the CONNECT request (which
+        -- carries the authorization header) is part of the connect procedure, whereas
+        -- with a plain http request the authorization is part of the actual request.
     end
 
     -- do TCP level connection
