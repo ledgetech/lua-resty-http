@@ -77,7 +77,7 @@ local function connect(self, options)
     end
 
     -- proxy related settings
-    local proxy, proxy_uri, proxy_authorization, proxy_host, proxy_port
+    local proxy, proxy_uri, proxy_authorization, proxy_host, proxy_port, path_prefix
     proxy = options.proxy_opts or self.proxy_opts
 
     if proxy then
@@ -87,9 +87,21 @@ local function connect(self, options)
         else
             proxy_uri = proxy.http_proxy
             proxy_authorization = proxy.http_proxy_authorization
+            -- When a proxy is used, the target URI must be in absolute-form
+            -- (RFC 7230, Section 5.3.2.). That is, it must be an absolute URI
+            -- to the remote resource with the scheme, host and an optional port
+            -- in place.
+            --
+            -- Since _format_request() constructs the request line by concatenating
+            -- params.path and params.query together, we need to modify the path
+            -- to also include the scheme, host and port so that the final form
+            -- in conformant to RFC 7230.
+            path_prefix = "http://" .. request_host .. (request_port == 80 and "" or (":" .. request_port))
         end
         if not proxy_uri then
             proxy = nil
+            proxy_authorization = nil
+            path_prefix = nil
         end
     end
 
@@ -226,6 +238,7 @@ local function connect(self, options)
     self.ssl = ssl
     -- set only for http, https has already been handled
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
+    self.path_prefix = path_prefix
 
     return true
 end

@@ -309,7 +309,7 @@ function _M.parse_uri(_, uri, query_in_path)
 end
 
 
-local function _format_request(params)
+local function _format_request(self, params)
     local version = params.version
     local headers = params.headers or {}
 
@@ -324,6 +324,7 @@ local function _format_request(params)
     local req = {
         str_upper(params.method),
         " ",
+        self.path_prefix or "",
         params.path,
         query,
         HTTP[version],
@@ -332,7 +333,7 @@ local function _format_request(params)
         true,
         true,
     }
-    local c = 6 -- req table index it's faster to do this inline vs table.insert
+    local c = 7 -- req table index it's faster to do this inline vs table.insert
 
     -- Append headers
     for key, values in pairs(headers) do
@@ -681,7 +682,7 @@ function _M.send_request(self, params)
     params.headers = headers
 
     -- Format and send request
-    local req = _format_request(params)
+    local req = _format_request(self, params)
     if DEBUG then ngx_log(ngx_DEBUG, "\n", req) end
     local bytes, err = sock:send(req)
 
@@ -911,9 +912,9 @@ function _M.request_uri(self, uri, params)
             -- to also include the scheme, host and port so that the final form
             -- in conformant to RFC 7230.
             if port == 80 then
-                params.path = scheme .. "://" .. host .. path
+                self.path_prefix = scheme .. "://" .. host .. path
             else
-                params.path = scheme .. "://" .. host .. ":" .. port .. path
+                self.path_prefix = scheme .. "://" .. host .. ":" .. port .. path
             end
 
             if self.proxy_opts.http_proxy_authorization then
