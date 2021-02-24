@@ -305,7 +305,6 @@ The `params` table accepts the following fields:
 * `query` The query string, presented as either a literal string or Lua table..
 * `headers` A table of request headers.
 * `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
-* `ssl_verify` Verify SSL cert matches hostname
 
 When the request is successful, `res` will contain the following fields:
 
@@ -323,8 +322,9 @@ When the request is successful, `res` will contain the following fields:
 
 The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself.
 
-There are 3 additional parameters for controlling keepalives:
+There are 4 additional parameters for controlling keepalives and ssl:
 
+* `ssl_verify` Verify the SSL cert matches the hostname
 * `keepalive` Set to `false` to disable keepalives and immediately close the connection.
 * `keepalive_timeout` The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
 * `keepalive_pool` The maximum number of connections in the pool. Defaults to `lua_socket_pool_size`.
