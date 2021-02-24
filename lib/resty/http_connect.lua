@@ -55,25 +55,16 @@ local function connect(self, options)
 
     -- ssl settings
     local ssl, ssl_server_name, ssl_verify, send_status_req
-    if request_scheme ~= "http" then
-        -- either https or unix domain socket
-        ssl = options.ssl
+    ssl = (request_scheme == "https") or (not not options.ssl)
+    if ssl then
+        ssl_verify = true -- default
         if type(options.ssl) == "table" then
-            ssl_server_name = ssl.server_name
-            send_status_req = ssl.send_status_req
-            ssl_verify = (ssl.verify == nil) or (not not ssl.verify) -- default to true, and force to bool
-            ssl = true
-        else
-            if ssl then
-                ssl = true
-                ssl_verify = true       -- default to true
-            else
-                ssl = false
+            ssl_server_name = options.ssl.server_name
+            send_status_req = options.ssl.send_status_req
+            if options.ssl.ssl_verify == false then
+                ssl_verify = false
             end
         end
-    else
-        -- plain http
-        ssl = false
     end
 
     -- proxy related settings
