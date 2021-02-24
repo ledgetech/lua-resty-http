@@ -629,20 +629,18 @@ function _M.send_request(self, params)
     local body = params.body
     local headers = http_headers.new()
 
-    local params_headers = params.headers
-    if params_headers then
-        -- We assign one by one so that the metatable can handle case insensitivity
-        -- for us. You can blame the spec for this inefficiency.
-        for k, v in pairs(params_headers) do
-            headers[k] = v
-        end
-        if not headers["Proxy-Authorization"] then
-            -- TODO: next major, change this to always override the provided
-            -- header. Can't do that yet because it would be breaking.
-            -- The connect method uses self.http_proxy_auth in the poolname so
-            -- that should be leading.
-            headers["Proxy-Authorization"] = self.http_proxy_auth
-        end
+    local params_headers = params.headers or {}
+    -- We assign one by one so that the metatable can handle case insensitivity
+    -- for us. You can blame the spec for this inefficiency.
+    for k, v in pairs(params_headers) do
+        headers[k] = v
+    end
+    if not headers["Proxy-Authorization"] then
+        -- TODO: next major, change this to always override the provided
+        -- header. Can't do that yet because it would be breaking.
+        -- The connect method uses self.http_proxy_auth in the poolname so
+        -- that should be leading.
+        headers["Proxy-Authorization"] = self.http_proxy_auth
     end
 
     -- Ensure minimal headers are set
@@ -862,97 +860,39 @@ end
 
 function _M.request_uri(self, uri, params)
     params = tbl_copy(params or {}) -- Take by value
-
-    local parsed_uri, err = self:parse_uri(uri, false)
-    if not parsed_uri then
-        return nil, err
+    if self.proxy_opts then
+        params.proxy_opts = tbl_copy(self.proxy_opts or {})
     end
 
-    local scheme, host, port, path, query = unpack(parsed_uri)
-    if not params.path then params.path = path end
-    if not params.query then params.query = query end
-
-    -- See if we should use a proxy to make this request
-    local proxy_uri = self:get_proxy_uri(scheme, host)
-
-    -- Make the connection either through the proxy or directly
-    -- to the remote host
-    local c, err
-
-    if proxy_uri then
-        local proxy_authorization
-        if scheme == "https" then
-            if params.headers and params.headers["Proxy-Authorization"] then
-                proxy_authorization = params.headers["Proxy-Authorization"]
-                -- TODO: this is https, so we connect to the proxy first, so the actual
-                -- request would not need the Auth header. So we should clear that.
-            else
-                proxy_authorization = self.proxy_opts.https_proxy_authorization
-            end
-        end
-
-        c, err = self:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)
-    else
-        c, err = self:tcp_only_connect(host, port)
-    end
-
-    if not c then
-        return nil, err
-    end
-
-    if proxy_uri then
-        if scheme == "http" then
-            -- When a proxy is used, the target URI must be in absolute-form
-            -- (RFC 7230, Section 5.3.2.). That is, it must be an absolute URI
-            -- to the remote resource with the scheme, host and an optional port
-            -- in place.
-            --
-            -- Since _format_request() constructs the request line by concatenating
-            -- params.path and params.query together, we need to modify the path
-            -- to also include the scheme, host and port so that the final form
-            -- in conformant to RFC 7230.
-            if port == 80 then
-                self.path_prefix = scheme .. "://" .. host .. path
-            else
-                self.path_prefix = scheme .. "://" .. host .. ":" .. port .. path
-            end
-
-            if self.proxy_opts.http_proxy_authorization then
-                if not params.headers then
-                    params.headers = {}
-                end
-
-                if not params.headers["Proxy-Authorization"] then
-                    params.headers["Proxy-Authorization"] = self.proxy_opts.http_proxy_authorization
-                end
-            end
-        elseif scheme == "https" then
-            -- don't keep this connection alive as the next request could target
-            -- any host and re-using the proxy tunnel for that is not possible
-            self.keepalive = false
-        end
-
-        -- self:connect_uri() set the host and port to point to the proxy server. As
-        -- the connection to the proxy has been established, set the host and port
-        -- to point to the actual remote endpoint at the other end of the tunnel to
-        -- ensure the correct Host header added to the requests.
-        self.host = host
-        self.port = port
-    end
-
-    if scheme == "https" then
-        local verify = true
-
-        if params.ssl_verify == false then
-            verify = false
-        end
-
-        local ok, err = self:ssl_handshake(nil, host, verify)
-        if not ok then
-            self:close()
+    do
+        local parsed_uri, err = self:parse_uri(uri, false)
+        if not parsed_uri then
             return nil, err
         end
 
+        local path, query
+        params.scheme, params.host, params.port, path, query = unpack(parsed_uri)
+        params.path = params.path or path
+        params.query = params.query or query
+    end
+
+    if params.scheme == "https" and params.ssl_verify == false then
+        -- backward compat; params.ssl_verify --> params.ssl.ssl_verify
+        params.ssl = params.ssl or {}
+        params.ssl.ssl_verify = params.ssl_verify
+    end
+
+    do
+        local proxy_auth = (params.headers or {})["Proxy-Authorization"]
+        if proxy_auth and params.proxy_opts then
+            params.proxy_opts.https_proxy_authorization = proxy_auth
+            params.proxy_opts.http_proxy_authorization = proxy_auth
+        end
+    end
+
+    local ok, err = self:connect(params)
+    if not ok then
+        return nil, err
     end
 
     local res, err = self:request(params)

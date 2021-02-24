@@ -34,13 +34,15 @@ __DATA__
             local http = require "resty.http"
             local httpc = http.new()
             local res, err = httpc:request_uri(
-                "http://127.0.0.1:"..ngx.var.server_port.."/b", {
-                }
+                "http://127.0.0.1:" .. ngx.var.server_port.."/b", {}
             )
-
             ngx.say(res.headers["Connection"])
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect {
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
             ngx.say(httpc:get_reused_times())
         ';
     }
@@ -261,7 +263,11 @@ connection must be closed
 
             ngx.say(res.headers["Connection"])
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect {
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
             ngx.say(httpc:get_reused_times())
             httpc:close()
 
@@ -274,7 +280,11 @@ connection must be closed
 
             ngx.say(res.headers["Connection"])
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect {
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
             ngx.say(httpc:get_reused_times())
             httpc:close()
 
@@ -289,7 +299,11 @@ connection must be closed
 
             ngx.sleep(1.1)
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect {
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
             ngx.say(httpc:get_reused_times())
             httpc:close()
         }
