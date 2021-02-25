@@ -394,7 +394,7 @@ Basic ZGVtbzp0ZXN0
     }
 --- tcp_listen: 12345
 --- tcp_query eval
-qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzpwYXNz\r\n.*Host: 127.0.0.1:443\r\n.*/s
+qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzpwYXNz\r\n.*/s
 
 # The reply cannot be successful or otherwise the client would start
 # to do a TLS handshake with the proxied host and that we cannot
@@ -505,7 +505,7 @@ Basic ZGVtbzp3b3Jk
     }
 --- tcp_listen: 12345
 --- tcp_query eval
-qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzp3b3Jk\r\n.*Host: 127.0.0.1:443\r\n.*/s
+qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzp3b3Jk\r\n.*/s
 
 # The reply cannot be successful or otherwise the client would start
 # to do a TLS handshake with the proxied host and that we cannot
