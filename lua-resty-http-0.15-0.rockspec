@@ -17,7 +17,7 @@ build = {
     type = "builtin",
     modules = {
         ["resty.http"] = "lib/resty/http.lua",
-        ["resty.http_headers"] = "lib/resty/http_headers.lua"
+        ["resty.http_headers"] = "lib/resty/http_headers.lua",
         ["resty.http_connect"] = "lib/resty/http_connect.lua"
     }
 }
