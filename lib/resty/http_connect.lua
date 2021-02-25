@@ -21,12 +21,11 @@ client:connect {
     pool_size = nil,        -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
     backlog = nil,
 
-    ssl = {                 -- ssl will be used when either scheme = https, or when ssl is truthy
-        server_name = nil,  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
-        send_status_req = nil,
-        ssl_verify = true,  -- defaults to true
-        ctx = nil,          -- NOT supported
-    },
+    -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
+    ssl_server_name = nil,
+    ssl_send_status_req = nil,
+    ssl_verify = true,      -- NOTE: defaults to true
+    ctx = nil,              -- NOTE: not supported
 
     proxy_opts,             -- proxy opts, defaults to global proxy options
 }
@@ -54,16 +53,14 @@ local function connect(self, options)
     end
 
     -- ssl settings
-    local ssl, ssl_server_name, ssl_verify, send_status_req
-    ssl = (request_scheme == "https") or (not not options.ssl)
-    if ssl then
+    local ssl, ssl_server_name, ssl_verify, ssl_send_status_req
+    if request_scheme == "https" then
+        ssl = true
+        ssl_server_name = options.ssl_server_name
+        ssl_send_status_req = options.ssl_send_status_req
         ssl_verify = true -- default
-        if type(options.ssl) == "table" then
-            ssl_server_name = options.ssl.server_name
-            send_status_req = options.ssl.send_status_req
-            if options.ssl.ssl_verify == false then
-                ssl_verify = false
-            end
+        if options.ssl_verify == false then
+            ssl_verify = false
         end
     end
 
@@ -175,7 +172,7 @@ local function connect(self, options)
             return nil, err
         end
 
-        if request_scheme == "https" and sock:getreusedtimes() == 0 then
+        if ssl and sock:getreusedtimes() == 0 then
             -- Make a CONNECT request to create a tunnel to the destination through
             -- the proxy. The request-target and the Host header must be in the
             -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
@@ -216,7 +213,7 @@ local function connect(self, options)
 
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ok, err = self:ssl_handshake(nil, ssl_server_name, ssl_verify, send_status_req)
+        local ok, err = self:ssl_handshake(nil, ssl_server_name, ssl_verify, ssl_send_status_req)
         if not ok then
             self:close()
             return nil, err
