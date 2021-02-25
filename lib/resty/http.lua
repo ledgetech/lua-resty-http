@@ -876,12 +876,6 @@ function _M.request_uri(self, uri, params)
         params.query = params.query or query
     end
 
-    if params.scheme == "https" and params.ssl_verify == false then
-        -- backward compat; params.ssl_verify --> params.ssl.ssl_verify
-        params.ssl = params.ssl or {}
-        params.ssl.ssl_verify = params.ssl_verify
-    end
-
     do
         local proxy_auth = (params.headers or {})["Proxy-Authorization"]
         if proxy_auth and params.proxy_opts then

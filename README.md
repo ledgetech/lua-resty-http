@@ -184,12 +184,10 @@ The options table has the following fields:
   SSL/Proxy properties to make it safe to re-use. When in doubt, leave it blank!
 * `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 * `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-* `proxy_opts`: sub-table, defaults to the global proxy options set.
-* `ssl`: sub-table. **NOTE**: ssl will be used when either `scheme == "https"`, or when `ssl` is truthy
-    * `server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
-    * `send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
-    * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
-    * `ctx`: NOT supported
+* `proxy_opts`: sub-table, defaults to the global proxy options set, see [set_proxy_options](#set-proxy-options).
+* `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
+* `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+* `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 
 
 ### TCP only connect
@@ -320,11 +318,12 @@ When the request is successful, `res` will contain the following fields:
 
 `syntax: res, err = httpc:request_uri(uri, params)`
 
-The simple interface. Options supplied in the `params` table are the same as in the generic interface, and will override components found in the uri itself.
+The simple interface. Options supplied in the `params` table are the combined parameters
+from the all-in-one connect interface, and the generic request interface. The parameters
+will override components found in the uri itself.
 
-There are 4 additional parameters for controlling keepalives and ssl:
+There are 3 additional parameters for controlling keepalives:
 
-* `ssl_verify` Verify the SSL cert matches the hostname
 * `keepalive` Set to `false` to disable keepalives and immediately close the connection.
 * `keepalive_timeout` The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
 * `keepalive_pool` The maximum number of connections in the pool. Defaults to `lua_socket_pool_size`.
