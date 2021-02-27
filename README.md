@@ -161,7 +161,7 @@ Attempts to connect to the web server.
 
 ### all-in-one connect
 
-This version of connect uses the `aio_options` signature above. For the
+This version of connect uses the `aio_options_table` signature above. For the
 other signatures see the [TCP only connect](#tcp-only-connect) below.
 
 This version of `connect` will connect to the remote end while incorporating the

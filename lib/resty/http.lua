@@ -277,9 +277,13 @@ function _M.parse_uri(_, uri, query_in_path)
         -- If the URI is schemaless (i.e. //example.com) try to use our current
         -- request scheme.
         if not m[1] then
-            -- TODO: remove this in next major version. This is undeterministic
-            -- behaviour. Scheme should be a required property. Best case is to
-            -- detect based on port 80/443.
+            -- Schema-less URIs can occur in client side code, implying "inherit
+            -- the schema from the current request". We support it for a fairly
+            -- specific case; if for example you are using the ESI parser in
+            -- ledge (https://github.com/ledgetech/ledge) to perform in-flight
+            -- sub requests on the edge based on instructions found in markup,
+            -- those URIs may also be schemaless with the intention that the
+            -- subrequest would inherit the schema just like JavaScript would.
             local scheme = ngx_var.scheme
             if scheme == "http" or scheme == "https" then
                 m[1] = scheme
@@ -1022,7 +1026,7 @@ function _M.get_proxy_uri(self, scheme, host)
         local no_proxy_set = {}
         -- wget allows domains in no_proxy list to be prefixed by "."
         -- e.g. no_proxy=.mit.edu
-        for host_suffix in ngx_re_gmatch(self.proxy_opts.no_proxy, "\\.?([^,]+)") do
+        for host_suffix in ngx_re_gmatch(self.proxy_opts.no_proxy, "\\.?([^,]+)", "jo") do
             no_proxy_set[host_suffix[1]] = true
         end
 
@@ -1041,8 +1045,8 @@ function _M.get_proxy_uri(self, scheme, host)
 
             -- Strip the next level from the domain and check if that one
             -- is on the list
-            host = ngx_re_sub(host, "^[^.]+\\.", "")
-        until not ngx_re_find(host, "\\.")
+            host = ngx_re_sub(host, "^[^.]+\\.", "", "jo")
+        until not ngx_re_find(host, "\\.", "jo")
     end
 
     if scheme == "http" and self.proxy_opts.http_proxy then
