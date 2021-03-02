@@ -22,6 +22,7 @@ local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
 local ngx_WARN = ngx.WARN
+local ngx_var = ngx.var
 local ngx_print = ngx.print
 local ngx_header = ngx.header
 local co_yield = coroutine.yield
