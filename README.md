@@ -161,7 +161,7 @@ Attempts to connect to the web server while incorporating the following activiti
 - SSL handshake
 - HTTP proxy configuration
 
-In doing so it will create a distinct connection pool name that is safe to use with SSL and / or proxy based connections, and as such this syntax is strongly recommended over the original [deprecated connection syntax](#TCP_only_connect).
+In doing so it will create a distinct connection pool name that is safe to use with SSL and / or proxy based connections, and as such this syntax is strongly recommended over the original [deprecated connection syntax](#TCP-only-connect).
 
 The options table has the following fields:
 
@@ -210,7 +210,7 @@ Configure an HTTP proxy to be used with this client instance. The `opts` table e
 * `https_proxy_authorization`: as `http_proxy_authorization` but for use with `https_proxy` (since with HTTPS the authorisation is done when connecting, this one cannot be overridden by passing the `Proxy-Authorization` request header).
 * `no_proxy`: a comma separated list of hosts that should not be proxied.
 
-Note that this method has no effect when using the deprecated [TCP only connect](#TCP_only_connect) connection syntax.
+Note that this method has no effect when using the deprecated [TCP only connect](#TCP-only-connect) connection syntax.
 
 ## get\_reused\_times
 
@@ -405,7 +405,7 @@ NOTE: the default pool name will only incorporate IP and port information so is 
 
 `syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)`
 
-*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP_only_connect) syntax.*
+*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP-only-connect) syntax.*
 
 Attempts to connect to the web server through the given proxy server. The method accepts the following arguments:
 
@@ -426,7 +426,7 @@ There's a few key points to keep in mind when using this api:
 
 `syntax: session, err = httpc:ssl_handshake(session, host, verify)`
 
-*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP_only_connect) syntax.*
+*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP-only-connect) syntax.*
 
 See [OpenResty docs](https://github.com/openresty/lua-nginx-module#ngxsockettcp).
 
