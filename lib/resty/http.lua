@@ -180,6 +180,8 @@ do
 end
 
 function _M.tcp_only_connect(self, ...)
+    ngx_log(ngx_WARN, "Use of deprecated `connect` method signature")
+
     local sock = self.sock
     if not sock then
         return nil, "not initialized"
