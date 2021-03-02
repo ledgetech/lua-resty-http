@@ -33,7 +33,11 @@ __DATA__
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
 
             local res, err = httpc:request{
                 path = "/b",
@@ -101,7 +105,11 @@ OK
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
 
             local res, err = httpc:request{
                 path = "/b",
