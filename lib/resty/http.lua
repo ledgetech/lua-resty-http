@@ -21,7 +21,7 @@ local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
-local ngx_var = ngx.var
+local ngx_WARN = ngx.WARN
 local ngx_print = ngx.print
 local ngx_header = ngx.header
 local co_yield = coroutine.yield
@@ -160,18 +160,6 @@ function _M.set_timeouts(self, connect_timeout, send_timeout, read_timeout)
     end
 
     return sock:settimeouts(connect_timeout, send_timeout, read_timeout)
-end
-
-
-function _M.ssl_handshake(self, ...)
-    local sock = self.sock
-    if not sock then
-        return nil, "not initialized"
-    end
-
-    self.ssl = true
-
-    return sock:sslhandshake(...)
 end
 
 do
@@ -959,50 +947,6 @@ function _M.get_client_body_reader(_, chunksize, sock)
 end
 
 
-function _M.proxy_request(self, chunksize)
-    return self:request({
-        method = ngx_req_get_method(),
-        path = ngx_re_gsub(ngx_var.uri, "\\s", "%20", "jo") .. ngx_var.is_args .. (ngx_var.query_string or ""),
-        body = self:get_client_body_reader(chunksize),
-        headers = ngx_req_get_headers(),
-    })
-end
-
-
-function _M.proxy_response(_, response, chunksize)
-    if not response then
-        ngx_log(ngx_ERR, "no response provided")
-        return
-    end
-
-    ngx.status = response.status
-
-    -- Filter out hop-by-hop headeres
-    for k, v in pairs(response.headers) do
-        if not HOP_BY_HOP_HEADERS[str_lower(k)] then
-            ngx_header[k] = v
-        end
-    end
-
-    local reader = response.body_reader
-    repeat
-        local chunk, err = reader(chunksize)
-        if err then
-            ngx_log(ngx_ERR, err)
-            break
-        end
-
-        if chunk then
-            local res, err = ngx_print(chunk)
-            if not res then
-                ngx_log(ngx_ERR, err)
-                break
-            end
-        end
-    until not chunk
-end
-
-
 function _M.set_proxy_options(self, opts)
     -- TODO: parse and cache these options, instead of parsing them
     -- on each request over and over again (lru-cache on module level)
@@ -1061,7 +1005,28 @@ function _M.get_proxy_uri(self, scheme, host)
 end
 
 
+-- ----------------------------------------------------------------------------
+-- The following functions are considered DEPRECATED and may be REMOVED in
+-- future releases. Please see the notes in `README.md`.
+-- ----------------------------------------------------------------------------
+
+function _M.ssl_handshake(self, ...)
+    ngx_log(ngx_WARN, "Use of deprecated function `ssl_handshake`")
+
+    local sock = self.sock
+    if not sock then
+        return nil, "not initialized"
+    end
+
+    self.ssl = true
+
+    return sock:sslhandshake(...)
+end
+
+
 function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorization)
+    ngx_log(ngx_WARN, "Use of deprecated function `connect_proxy`")
+
     -- Parse the provided proxy URI
     local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
     if not parsed_proxy_uri then
@@ -1107,6 +1072,54 @@ function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorizati
     end
 
     return c, nil
+end
+
+
+function _M.proxy_request(self, chunksize)
+    ngx_log(ngx_WARN, "Use of deprecated function `proxy_request`")
+
+    return self:request({
+        method = ngx_req_get_method(),
+        path = ngx_re_gsub(ngx_var.uri, "\\s", "%20", "jo") .. ngx_var.is_args .. (ngx_var.query_string or ""),
+        body = self:get_client_body_reader(chunksize),
+        headers = ngx_req_get_headers(),
+    })
+end
+
+
+function _M.proxy_response(_, response, chunksize)
+    ngx_log(ngx_WARN, "Use of deprecated function `proxy_response`")
+
+    if not response then
+        ngx_log(ngx_ERR, "no response provided")
+        return
+    end
+
+    ngx.status = response.status
+
+    -- Filter out hop-by-hop headeres
+    for k, v in pairs(response.headers) do
+        if not HOP_BY_HOP_HEADERS[str_lower(k)] then
+            ngx_header[k] = v
+        end
+    end
+
+    local reader = response.body_reader
+    repeat
+        local chunk, err = reader(chunksize)
+        if err then
+            ngx_log(ngx_ERR, err)
+            break
+        end
+
+        if chunk then
+            local res, err = ngx_print(chunk)
+            if not res then
+                ngx_log(ngx_ERR, err)
+                break
+            end
+        end
+    until not chunk
 end
 
 
