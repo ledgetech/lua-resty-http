@@ -77,12 +77,20 @@ keep-alive
                 }
             )
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
 
             httpc:set_keepalive()
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
         ';
     }
@@ -108,7 +116,11 @@ GET /a
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
 
             local res, err = httpc:request{
                 path = "/b"
@@ -119,7 +131,11 @@ GET /a
             ngx.say(res.headers["Connection"])
             ngx.say(httpc:set_keepalive())
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
         ';
     }
@@ -146,7 +162,11 @@ keep-alive
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
 
             local res, err = httpc:request{
                 version = 1.0,
@@ -163,12 +183,20 @@ keep-alive
             ngx.say(r)
             ngx.say(e)
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
 
             httpc:set_keepalive()
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
         ';
     }
@@ -197,7 +225,11 @@ connection must be closed
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", 12345)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = 12345,
+            })
 
             local res, err = httpc:request{
                 version = 1.0,
@@ -213,12 +245,20 @@ connection must be closed
             ngx.say(r)
             ngx.say(e)
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
 
             httpc:set_keepalive()
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
         ';
     }
@@ -336,8 +376,11 @@ keep-alive
 
             -- Create a TCP connection and return an raw HTTP-response because
             -- there is no way to set an "Connection: Upgrade, close" header in nginx.
-            assert(httpc:connect("127.0.0.1", 12345),
-                "connect should return positively")
+            assert(httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = 12345,
+            }), "connect should return positively")
 
             local res = httpc:request({
                 version = 1.1,
@@ -353,12 +396,20 @@ keep-alive
             ngx.say(r)
             ngx.say(e)
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
 
             httpc:set_keepalive()
 
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
             ngx.say(httpc:get_reused_times())
         }
     }

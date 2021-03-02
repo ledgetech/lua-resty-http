@@ -35,7 +35,11 @@ __DATA__
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+            })
             httpc:proxy_response(httpc:proxy_request())
             httpc:set_keepalive()
         ';
@@ -56,6 +60,7 @@ X-Test: foo
 --- error_code: 200
 --- no_error_log
 [error]
+--- error_log
 [warn]
 
 
@@ -67,7 +72,11 @@ X-Test: foo
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+            })
             httpc:proxy_response(httpc:proxy_request())
             httpc:set_keepalive()
         ';
@@ -93,6 +102,7 @@ X-Test: foo
 --- error_code: 404
 --- no_error_log
 [error]
+--- error_log
 [warn]
 
 
@@ -104,7 +114,11 @@ X-Test: foo
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+            })
             httpc:proxy_response(httpc:proxy_request())
             httpc:set_keepalive()
         ';
@@ -124,6 +138,7 @@ OK
 --- error_code: 200
 --- no_error_log
 [error]
+--- error_log
 [warn]
 
 
@@ -135,7 +150,11 @@ OK
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+            })
             httpc:proxy_response(httpc:proxy_request())
             httpc:set_keepalive()
         ';
@@ -156,4 +175,5 @@ X-Test: foo
 --- error_code: 200
 --- no_error_log
 [error]
+--- error_log
 [warn]

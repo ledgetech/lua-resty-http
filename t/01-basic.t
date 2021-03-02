@@ -33,7 +33,11 @@ __DATA__
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 path = "/b"
@@ -64,7 +68,11 @@ OK
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 version = 1.0,
@@ -96,7 +104,11 @@ OK
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            local ok, err = httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 path = "/b"
@@ -133,7 +145,11 @@ OK
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 path = "/b"
@@ -167,7 +183,11 @@ x-value
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 query = {
@@ -212,7 +232,11 @@ X-Header-B: 2
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
-            httpc:connect("127.0.0.1", ngx.var.server_port)
+            httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
 
             local res, err = httpc:request{
                 method = "HEAD",
@@ -245,13 +269,14 @@ GET /a
         content_by_lua '
             local http = require "resty.http"
 
-            local res, err = http:connect("127.0.0.1", 1984)
+            local res, err = http:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
             if not res then ngx.say(err) end
 
             local res, err = http:set_timeout(500)
-            if not res then ngx.say(err) end
-
-            local res, err = http:ssl_handshake()
             if not res then ngx.say(err) end
 
             local res, err = http:set_keepalive()
@@ -267,7 +292,6 @@ GET /a
 --- request
 GET /a
 --- response_body
-not initialized
 not initialized
 not initialized
 not initialized
@@ -382,8 +406,11 @@ scheme: http, host: example.com, port: 80, path: /foo/bar?a=1&b=2
 
             -- Create a TCP connection and return an raw HTTP-response because
             -- there is no way to set an empty header value in nginx.
-            assert(httpc:connect("127.0.0.1", 12345),
-                "connect should return positively")
+            assert(httpc:connect{
+                scheme = "http",
+                host = "127.0.0.1",
+                port = 12345,
+            }, "connect should return positively")
 
             local res = httpc:request({ path = "/b" })
             if res.headers["X-Header-Empty"] == "" then
