@@ -1,211 +1,411 @@
 # lua-resty-http
 
-Lua HTTP client cosocket driver for [OpenResty](http://openresty.org/) / [ngx_lua](https://github.com/openresty/lua-nginx-module).
+Lua HTTP client cosocket driver for [OpenResty](http://openresty.org/) / [ngx\_lua](https://github.com/openresty/lua-nginx-module).
 
-# Status
+## Status
 
 Production ready.
 
 [![Build Status](https://travis-ci.org/ledgetech/lua-resty-http.svg?branch=master)](https://travis-ci.org/ledgetech/lua-resty-http)
 
-# Features
+## Features
 
 * HTTP 1.0 and 1.1
 * SSL
 * Streaming interface to the response body, for predictable memory usage
-* Alternative simple interface for singleshot requests without manual connection step
+* Alternative simple interface for single-shot requests without a manual connection step
 * Chunked and non-chunked transfer encodings
-* Keepalive
-* Pipelining
+* Connection keepalives
+* Request pipelining
 * Trailers
+* HTTP proxy connections
 
 
-# API
+## API
 
 * [new](#new)
 * [connect](#connect)
-* [connect_proxy](#connect_proxy)
-* [set_proxy_options](#set_proxy_options)
-* [set_timeout](#set_timeout)
-* [set_timeouts](#set_timeouts)
-* [ssl_handshake](#ssl_handshake)
-* [set_keepalive](#set_keepalive)
-* [get_reused_times](#get_reused_times)
+* [set\_proxy\_options](#set_proxy_options)
+* [set\_timeout](#set_timeout)
+* [set\_timeouts](#set_timeouts)
+* [set\_keepalive](#set_keepalive)
+* [get\_reused\_times](#get_reused_times)
 * [close](#close)
 * [request](#request)
-* [request_uri](#request_uri)
-* [request_pipeline](#request_pipeline)
+* [request\_uri](#request_uri)
+* [request\_pipeline](#request_pipeline)
+* [parse\_uri](#parse_uri)
+* [get\_client\_body\_reader](#get_client_body_reader)
 * [Response](#response)
-    * [body_reader](#resbody_reader)
-    * [read_body](#resread_body)
-    * [read_trailers](#resread_trailers)
-* [Proxy](#proxy)
-    * [proxy_request](#proxy_request)
-    * [proxy_response](#proxy_response)
-* [Utility](#utility)
-    * [parse_uri](#parse_uri)
-    * [get_client_body_reader](#get_client_body_reader)
+    * [body\_reader](#resbody_reader)
+    * [read\_body](#resread_body)
+    * [read\_trailers](#resread_trailers)
 
+### Deprecated
 
-## Synopsis
+These methods may be removed in future versions.
 
-```` lua
-lua_package_path "/path/to/lua-resty-http/lib/?.lua;;";
+* [connect\_proxy](#connect_proxy)
+* [ssl\_handshake](#ssl_handshake)
+* [proxy\_request](#proxy_request)
+* [proxy\_response](#proxy_response)
 
-server {
+## Usage
 
+There are two basic modes of operation:
 
-  location /simpleinterface {
-    resolver 8.8.8.8;  # use Google's open DNS server for an example
+1. **Simple single-shot requests** which require no manual connection management but which buffer the entire response and leave the connection either closed or back in the connection pool.
 
-    content_by_lua_block {
+2. **Streamed requests** where the connection is established separately, then the request is sent, the body stream read in chunks, and finally the connection is manually closed or kept alive. This technique requires a little more code but provides the ability to discard potentially large response bodies on the Lua side, as well as pipelining multiple requests over a single connection.
 
-      -- For simple singleshot requests, use the URI interface.
-      local http = require "resty.http"
-      local httpc = http.new()
-      local res, err = httpc:request_uri("http://example.com/helloworld", {
-        method = "POST",
-        body = "a=1&b=2",
-        headers = {
-          ["Content-Type"] = "application/x-www-form-urlencoded",
-        },
-        keepalive_timeout = 60000,
-        keepalive_pool = 10
-      })
+### Single-shot request
 
-      if not res then
-        ngx.say("failed to request: ", err)
-        return
-      end
+```lua
+local httpc = require("resty.http").new()
 
-      -- In this simple form, there is no manual connection step, so the body is read
-      -- all in one go, including any trailers, and the connection closed or keptalive
-      -- for you.
+-- Single-shot requests use the `request_uri` interface.
+local res, err = httpc:request_uri("http://example.com/helloworld", {
+    method = "POST",
+    body = "a=1&b=2",
+    headers = {
+        ["Content-Type"] = "application/x-www-form-urlencoded",
+    },
+})
+if not res then
+    ngx.log(ngx.ERR, "request failed: ", err)
+    return
+end
 
-      ngx.status = res.status
+-- At this point, the entire request / response is complete and the connection
+-- will be closed or back on the connection pool.
 
-      for k,v in pairs(res.headers) do
-          --
-      end
+-- The `res` table contains the expeected `status`, `headers` and `body` fields.
+local status = res.status
+local length = res.headers["Content-Length"]
+local body   = res.body
+```
 
-      ngx.say(res.body)
-    }
-  }
+### Streamed request
 
+```lua
+local httpc = require("resty.http").new()
 
-  location /genericinterface {
-    content_by_lua_block {
+-- First establish a connection
+local ok, err = httpc:connect({
+    scheme = "https",
+    host = "127.0.0.1"
+    port = 8080,
+})
+if not ok then
+    ngx.log(ngx.ERR, "connection failed: ", err)
+    return
+end
 
-      local http = require "resty.http"
-      local httpc = http.new()
+-- Then send using `request`, supplying a path and `Host` header instead of a
+-- full URI.
+local res, err = httpc:request({
+    path = "/helloworld",
+    headers = {
+        ["Host"] = "example.com",
+    },
+})
+if not res then
+    ngx.log(ngx.ERR, "request failed: ", err)
+    return
+end
 
-      -- The generic form gives us more control. We must connect manually.
-      httpc:set_timeout(500)
-      httpc:connect("127.0.0.1", 80)
+-- At this point, the status and headers will be available to use in the `res`
+-- table, but the body and any trailers will still be on the wire.
 
-      -- And request using a path, rather than a full URI.
-      local res, err = httpc:request({
-          path = "/helloworld",
-          headers = {
-              ["Host"] = "example.com",
-          },
-      })
+-- We can use the `body_reader` iterator, to stream the body according to our
+-- desired buffer size.
+local reader = res.body_reader
+local buffer_size = 8192
 
-      if not res then
-        ngx.say("failed to request: ", err)
-        return
-      end
+repeat
+    local buffer, err = reader(buffer_size)
+    if err then
+        ngx.log(ngx.ERR, err)
+        break
+    end
 
-      -- Now we can use the body_reader iterator, to stream the body according to our desired chunk size.
-      local reader = res.body_reader
+    if buffer then
+        -- process
+    end
+until not buffer
 
-      repeat
-        local chunk, err = reader(8192)
-        if err then
-          ngx.log(ngx.ERR, err)
-          break
-        end
+local ok, err = httpc:set_keepalive()
+if not ok then
+    ngx.say("failed to set keepalive: ", err)
+    return
+end
 
-        if chunk then
-          -- process
-        end
-      until not chunk
-
-      local ok, err = httpc:set_keepalive()
-      if not ok then
-        ngx.say("failed to set keepalive: ", err)
-        return
-      end
-    }
-  }
-}
+-- At this point, the connection will either be safely back in the pool, or closed.
 ````
 
 # Connection
 
 ## new
 
-`syntax: httpc = http.new()`
+`syntax: httpc, err = http.new()`
 
-Creates the http object. In case of failures, returns `nil` and a string describing the error.
+Creates the HTTP connection object. In case of failures, returns `nil` and a string describing the error.
 
 ## connect
 
-`syntax: ok, err = httpc:connect(aio_options_table)`
+`syntax: ok, err = httpc:connect(options)`
+
+Attempts to connect to the web server while incorporating the following activities:
+
+- TCP connection
+- SSL handshake
+- HTTP proxy configuration
+
+In doing so it will create a distinct connection pool name that is safe to use with SSL and / or proxy based connections, and as such this syntax is strongly recommended over the original [deprecated connection syntax](#TCP_only_connect).
+
+The options table has the following fields:
+
+* `scheme`: scheme to use, or nil for unix domain socket
+* `host`: target host, or path to a unix domain socket
+* `port`: port on target host, will default to `80` or `443` based on the scheme
+* `pool`: custom connection pool name. Option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect), except that the default will become a pool name constructed using the SSL / proxy properties, which is important for safe connection reuse. When in doubt, leave it blank!
+* `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `proxy_opts`: sub-table, defaults to the global proxy options set, see [set\_proxy\_options](#set-proxy-options).
+* `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
+* `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+* `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+
+## set\_timeout
+
+`syntax: httpc:set_timeout(time)`
+
+Sets the socket timeout (in ms) for subsequent operations. See [set\_timeouts](#set_timeouts) below for a more declarative approach.
+
+## set\_timeouts
+
+`syntax: httpc:set_timeouts(connect_timeout, send_timeout, read_timeout)`
+
+Sets the connect timeout threshold, send timeout threshold, and read timeout threshold, respectively, in milliseconds, for subsequent socket operations (connect, send, receive, and iterators returned from receiveuntil).
+
+## set\_keepalive
+
+`syntax: ok, err = httpc:set_keepalive(max_idle_timeout, pool_size)`
+
+Either places the current connection into the pool for future reuse, or closes the connection. Calling this instead of [close](#close) is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
+
+In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the connection is conditionally closed as described above, returns `2` and the error string `connection must be closed`, so as to distinguish from unexpected errors.
+
+See [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksetkeepalive) for parameter documentation.
+
+## set\_proxy\_options
+
+`syntax: httpc:set_proxy_options(opts)`
+
+Configure an HTTP proxy to be used with this client instance. The `opts` table expects the following fields:
+
+* `http_proxy`: an URI to a proxy server to be used with HTTP requests
+* `http_proxy_authorization`: a default `Proxy-Authorization` header value to be used with `http_proxy`, e.g. `Basic ZGVtbzp0ZXN0`, which will be overriden if the `Proxy-Authorization` request header is present.
+* `https_proxy`: an URI to a proxy server to be used with HTTPS requests
+* `https_proxy_authorization`: as `http_proxy_authorization` but for use with `https_proxy` (since with HTTPS the authorisation is done when connecting, this one cannot be overridden by passing the `Proxy-Authorization` request header).
+* `no_proxy`: a comma separated list of hosts that should not be proxied.
+
+Note that this method has no effect when using the deprecated [TCP only connect](#TCP_only_connect) connection syntax.
+
+## get\_reused\_times
+
+`syntax: times, err = httpc:get_reused_times()`
+
+See [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockgetreusedtimes).
+
+## close
+
+`syntax: ok, err = httpc:close()`
+
+See [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockclose).
+
+# Requesting
+
+## request
+
+`syntax: res, err = httpc:request(params)`
+
+Sends an HTTP request over an already established connection. Returns a `res` table or `nil` and an error message.
+
+The `params` table expects the following fields:
+
+* `version`: The HTTP version number. Defaults to `1.1`.
+* `method`: The HTTP method string. Defaults to `GET`.
+* `path`: The path string. Defaults to `/`.
+* `query`: The query string, presented as either a literal string or Lua table..
+* `headers`: A table of request headers.
+* `body`: The request body as a string, or an iterator function (see [get\_client\_body\_reader](#get_client_body_reader)).
+
+When the request is successful, `res` will contain the following fields:
+
+* `status`: The status code.
+* `reason`: The status reason phrase.
+* `headers`: A table of headers. Multiple headers with the same field name will be presented as a table of values.
+* `has_body`: A boolean flag indicating if there is a body to be read.
+* `body_reader`: An iterator function for reading the body in a streaming fashion.
+* `read_body`: A method to read the entire body into a string.
+* `read_trailers`: A method to merge any trailers underneath the headers, after reading the body.
+
+## request\_uri
+
+`syntax: res, err = httpc:request_uri(uri, params)`
+
+The single-shot interface (see [usage](#Usage)). Since this method performs an entire end-to-end request, options specified in the `params` can include anything found in both [connect](#connect) and [request](#request) documented above. Note also that fields in `params` will override relevant components of the `uri` if specified.
+
+There are 3 additional parameters for controlling keepalives:
+
+* `keepalive`: Set to `false` to disable keepalives and immediately close the connection. Defaults to `true`.
+* `keepalive_timeout`: The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
+* `keepalive_pool`: The maximum number of connections in the pool. Defaults to `lua_socket_pool_size`.
+
+If the request is successful, `res` will contain the following fields:
+
+* `status`: The status code.
+* `headers`: A table of headers.
+* `body`: The entire response body as a string.
+
+
+## request\_pipeline
+
+`syntax: responses, err = httpc:request_pipeline(params)`
+
+This method works as per the [request](#request) method above, but `params` is instead a nested table of parameter tables. Each request is sent in order, and `responses` is returned as a table of response handles. For example:
+
+```lua
+local responses = httpc:request_pipeline({
+    { path = "/b" },
+    { path = "/c" },
+    { path = "/d" },
+})
+
+for _, r in ipairs(responses) do
+    if not r.status then
+        ngx.log(ngx.ERR, "socket read error")
+        break
+    end
+
+    ngx.say(r.status)
+    ngx.say(r:read_body())
+end
+```
+
+Due to the nature of pipelining, no responses are actually read until you attempt to use the response fields (status / headers etc). And since the responses are read off in order, you must read the entire body (and any trailers if you have them), before attempting to read the next response.
+
+Note this doesn't preclude the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
+
+Be sure to test at least one field (such as status) before trying to use the others, in case a socket read error has occurred.
+
+# Response
+
+## res.body\_reader
+
+The `body_reader` iterator can be used to stream the response body in chunk sizes of your choosing, as follows:
+
+````lua
+local reader = res.body_reader
+local buffer_size = 8192
+
+repeat
+    local buffer, err = reader(buffer_size)
+    if err then
+        ngx.log(ngx.ERR, err)
+        break
+    end
+
+    if buffer then
+        -- process
+    end
+until not buffer
+````
+
+If the reader is called with no arguments, the behaviour depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
+
+Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get buffers smaller than the size you ask, as a remainder of the actual encoded chunks.
+
+## res:read\_body
+
+`syntax: body, err = res:read_body()`
+
+Reads the entire body into a local string.
+
+## res:read\_trailers
+
+`syntax: res:read_trailers()`
+
+This merges any trailers underneath the `res.headers` table itself. Must be called after reading the body.
+
+# Utility
+
+## parse\_uri
+
+`syntax: local scheme, host, port, path, query? = unpack(httpc:parse_uri(uri, query_in_path?))`
+
+This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI.
+
+As of version `0.10`, the optional `query_in_path` parameter was added, which specifies whether the querystring is to be included in the `path` return value, or separately as its own return value. This defaults to `true` in order to maintain backwards compatibility. When set to `false`, `path` will only include the path, and `query` will contain the URI args, not including the `?` delimiter.
+
+
+## get\_client\_body\_reader
+
+`syntax: reader, err = httpc:get_client_body_reader(chunksize?, sock?)`
+
+Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. You may also specify an optional default chunksize (default is `65536`), or an already established socket in
+place of the client request.
+
+Example:
+
+```lua
+local req_reader = httpc:get_client_body_reader()
+local buffer_size = 8192
+
+repeat
+    local buffer, err = req_reader(buffer_size)
+    if err then
+        ngx.log(ngx.ERR, err)
+        break
+    end
+
+    if buffer then
+        -- process
+    end
+until not buffer
+```
+
+This iterator can also be used as the value for the body field in request params, allowing one to stream the request body into a proxied upstream request.
+
+```lua
+local client_body_reader, err = httpc:get_client_body_reader()
+
+local res, err = httpc:request({
+    path = "/helloworld",
+    body = client_body_reader,
+})
+```
+
+# Deprecated
+
+These features remain for backwards compatability, but may be removed in future releases.
+
+### TCP only connect
+
+*The following versions of the `connect` method signature are deprecated in favour of the single `table` argument [documented above](#connect).*
 
 `syntax: ok, err = httpc:connect(host, port, options_table?)`
 
 `syntax: ok, err = httpc:connect("unix:/path/to/unix.sock", options_table?)`
 
-Attempts to connect to the web server.
+NOTE: the default pool name will only incorporate IP and port information so is unsafe to use in case of SSL and/or Proxy connections. Specify your own pool or, better still, do not use these signatures.
 
-### all-in-one connect
-
-This version of connect uses the `aio_options_table` signature above. For the
-other signatures see the [TCP only connect](#tcp-only-connect) below.
-
-This version of `connect` will connect to the remote end while incorporating the
-following activities:
-
-- TCP connect
-- SSL handshake
-- HTTP-proxy (options to be set using [set_proxy_options](#set_proxy_options))
-
-Whilst doing this it will also create a distinct pool name that is safe to use
-with SSL and/or Proxy based connections.
-
-The options table has the following fields:
-
-* `scheme`: scheme to use, or nil for unix domain socket
-* `host`: target machine, or a unix domain socket
-* `port`: port on target machine, will default to `80` or `443` based on scheme
-* `pool`: connection pool name. Option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect),
-  except that the default will become a pool name constructed including all the
-  SSL/Proxy properties to make it safe to re-use. When in doubt, leave it blank!
-* `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-* `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-* `proxy_opts`: sub-table, defaults to the global proxy options set, see [set_proxy_options](#set-proxy-options).
-* `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
-* `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
-* `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
-
-
-### TCP only connect
-
-Before actually resolving the host name and connecting to the remote backend, this method will always look up the connection pool for matched idle connections created by previous calls of this method.
-
-NOTE: the default pool name will only incorporate IP and port information so is
-unsafe to use in case of SSL and/or Proxy connections. Specify your own pool
-name or use the [`all-in-one`](#all-in-one-connect) above.
-
-An optional Lua table can be specified as the last argument to this method to specify various connect options:
-
-* `pool`
-: Specifies a custom name for the connection pool being used. If omitted, then the connection pool name will be generated from the string template `<host>:<port>` or `<unix-socket-path>`.
-
-## connect_proxy
+## connect\_proxy
 
 `syntax: ok, err = httpc:connect_proxy(proxy_uri, scheme, host, port, proxy_authorization)`
+
+*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP_only_connect) syntax.*
 
 Attempts to connect to the web server through the given proxy server. The method accepts the following arguments:
 
@@ -222,291 +422,41 @@ There's a few key points to keep in mind when using this api:
 * If the scheme is `https`, you need to perform the TLS handshake with the remote server manually using the `ssl_handshake()` method before sending any requests through the proxy tunnel.
 * If the scheme is `http`, you need to ensure that the requests you send through the connections conforms to [RFC 7230](https://tools.ietf.org/html/rfc7230) and especially [Section 5.3.2.](https://tools.ietf.org/html/rfc7230#section-5.3.2) which states that the request target must be in absolute form. In practice, this means that when you use `send_request()`, the `path` must be an absolute URI to the resource (e.g. `http://example.com/index.html` instead of just `/index.html`).
 
-## set_timeout
-
-`syntax: httpc:set_timeout(time)`
-
-Sets the timeout (in ms) protection for subsequent operations, including the `connect` method.
-
-## set_timeouts
-
-`syntax: httpc:set_timeouts(connect_timeout, send_timeout, read_timeout)`
-
-Sets the connect timeout threshold, send timeout threshold, and read timeout threshold, respectively, in milliseconds, for subsequent socket operations (connect, send, receive, and iterators returned from receiveuntil).
-
-## ssl_handshake
+## ssl\_handshake
 
 `syntax: session, err = httpc:ssl_handshake(session, host, verify)`
 
-Performs an SSL handshake on the TCP connection, only available in ngx_lua > v0.9.11
+*Calling this method manually is no longer necessary since it is incorporated within [connect](#connect). It is retained for now for compatibility with users of the older [TCP only connect](#TCP_only_connect) syntax.*
 
-See docs for [ngx.socket.tcp](https://github.com/openresty/lua-nginx-module#ngxsockettcp) for details.
+See [OpenResty docs](https://github.com/openresty/lua-nginx-module#ngxsockettcp).
 
-## set_keepalive
+## proxy\_request / proxy\_response
 
-`syntax: ok, err = httpc:set_keepalive(max_idle_timeout, pool_size)`
+*These two convenience methods were intended simply to demonstrate a common use case of implementing reverse proxying, and the author regrets their inclusion in the module. Users are encouraged to roll their own rather than depend on these functions, which may be removed in a subsequent release.*
 
-Attempts to puts the current connection into the ngx_lua cosocket connection pool.
-
-You can specify the max idle timeout (in ms) when the connection is in the pool and the maximal size of the pool every nginx worker process.
-
-Only call this method in the place you would have called the `close` method instead. Calling this method will immediately turn the current http object into the `closed` state. Any subsequent operations other than `connect()` on the current object will return the `closed` error.
-
-Note that calling this instead of `close` is "safe" in that it will conditionally close depending on the type of request. Specifically, a `1.0` request without `Connection: Keep-Alive` will be closed, as will a `1.1` request with `Connection: Close`.
-
-In case of success, returns `1`. In case of errors, returns `nil, err`. In the case where the connection is conditionally closed as described above, returns `2` and the error string `connection must be closed`.
-
-## set_proxy_options
-
-`syntax: httpc:set_proxy_options(opts)`
-
-Configure an http proxy to be used with this client instance. The `opts` is a table that accepts the following fields:
-
-* `http_proxy` - an URI to a proxy server to be used with http requests
-* `http_proxy_authorization` - a default `Proxy-Authorization` header value to be used with `http_proxy`, e.g. `Basic ZGVtbzp0ZXN0`, which will be overriden if the `Proxy-Authorization` request header is present.
-* `https_proxy` - an URI to a proxy server to be used with https requests
-* `https_proxy_authorization` - as `http_proxy_authorization` but for use with `https_proxy` (since with https the authorisation is done when connecting, this one cannot be overridden by passing the `Proxy-Authorization` request header).
-* `no_proxy` - a comma separated list of hosts that should not be proxied.
-
-Note that proxy options are only applied when using the high-level `request_uri()` API, or when using the all-in-one connect.
-
-## get_reused_times
-
-`syntax: times, err = httpc:get_reused_times()`
-
-This method returns the (successfully) reused times for the current connection. In case of error, it returns `nil` and a string describing the error.
-
-If the current connection does not come from the built-in connection pool, then this method always returns `0`, that is, the connection has never been reused (yet). If the connection comes from the connection pool, then the return value is always non-zero. So this method can also be used to determine if the current connection comes from the pool.
-
-## close
-
-`syntax: ok, err = httpc:close()`
-
-Closes the current connection and returns the status.
-
-In case of success, returns `1`. In case of errors, returns `nil` with a string describing the error.
-
-
-# Requesting
-
-## request
-
-`syntax: res, err = httpc:request(params)`
-
-Returns a `res` table or `nil` and an error message.
-
-The `params` table accepts the following fields:
-
-* `version` The HTTP version number, currently supporting 1.0 or 1.1.
-* `method` The HTTP method string.
-* `path` The path string.
-* `query` The query string, presented as either a literal string or Lua table..
-* `headers` A table of request headers.
-* `body` The request body as a string, or an iterator function (see [get_client_body_reader](#get_client_body_reader)).
-
-When the request is successful, `res` will contain the following fields:
-
-* `status` The status code.
-* `reason` The status reason phrase.
-* `headers` A table of headers. Multiple headers with the same field name will be presented as a table of values.
-* `has_body` A boolean flag indicating if there is a body to be read.
-* `body_reader` An iterator function for reading the body in a streaming fashion.
-* `read_body` A method to read the entire body into a string.
-* `read_trailers` A method to merge any trailers underneath the headers, after reading the body.
-
-## request_uri
-
-`syntax: res, err = httpc:request_uri(uri, params)`
-
-The simple interface. Options supplied in the `params` table are the combined parameters
-from the all-in-one connect interface, and the generic request interface. The parameters
-will override components found in the uri itself.
-
-There are 3 additional parameters for controlling keepalives:
-
-* `keepalive` Set to `false` to disable keepalives and immediately close the connection.
-* `keepalive_timeout` The maximal idle timeout (ms). Defaults to `lua_socket_keepalive_timeout`.
-* `keepalive_pool` The maximum number of connections in the pool. Defaults to `lua_socket_pool_size`.
-
-In this mode, there is no need to connect manually first. The connection is made on your behalf, suiting cases where you simply need to grab a URI without too much hassle.
-
-Additionally there is no ability to stream the response body in this mode. If the request is successful, `res` will contain the following fields:
-
-* `status` The status code.
-* `headers` A table of headers.
-* `body` The response body as a string.
-
-
-## request_pipeline
-
-`syntax: responses, err = httpc:request_pipeline(params)`
-
-This method works as per the [request](#request) method above, but `params` is instead a table of param tables. Each request is sent in order, and `responses` is returned as a table of response handles. For example:
-
-```lua
-local responses = httpc:request_pipeline{
-  {
-    path = "/b",
-  },
-  {
-    path = "/c",
-  },
-  {
-    path = "/d",
-  }
-}
-
-for i,r in ipairs(responses) do
-  if r.status then
-    ngx.say(r.status)
-    ngx.say(r:read_body())
-  end
-end
-```
-
-Due to the nature of pipelining, no responses are actually read until you attempt to use the response fields (status / headers etc). And since the responses are read off in order, you must read the entire body (and any trailers if you have them), before attempting to read the next response.
-
-Note this doesn't preclude the use of the streaming response body reader. Responses can still be streamed, so long as the entire body is streamed before attempting to access the next response.
-
-Be sure to test at least one field (such as status) before trying to use the others, in case a socket read error has occurred.
-
-# Response
-
-## res.body_reader
-
-The `body_reader` iterator can be used to stream the response body in chunk sizes of your choosing, as follows:
-
-````lua
-local reader = res.body_reader
-
-repeat
-  local chunk, err = reader(8192)
-  if err then
-    ngx.log(ngx.ERR, err)
-    break
-  end
-
-  if chunk then
-    -- process
-  end
-until not chunk
-````
-
-If the reader is called with no arguments, the behaviour depends on the type of connection. If the response is encoded as chunked, then the iterator will return the chunks as they arrive. If not, it will simply return the entire body.
-
-Note that the size provided is actually a **maximum** size. So in the chunked transfer case, you may get chunks smaller than the size you ask, as a remainder of the actual HTTP chunks.
-
-## res:read_body
-
-`syntax: body, err = res:read_body()`
-
-Reads the entire body into a local string.
-
-
-## res:read_trailers
-
-`syntax: res:read_trailers()`
-
-This merges any trailers underneath the `res.headers` table itself. Must be called after reading the body.
-
-
-# Proxy
-
-There are two convenience methods for when one simply wishes to proxy the current request to the connected upstream, and safely send it downstream to the client, as a reverse proxy. A complete example:
-
-```lua
-local http = require "resty.http"
-local httpc = http.new()
-
-httpc:set_timeout(500)
-local ok, err = httpc:connect(HOST, PORT)
-
-if not ok then
-  ngx.log(ngx.ERR, err)
-  return
-end
-
-httpc:set_timeout(2000)
-httpc:proxy_response(httpc:proxy_request())
-httpc:set_keepalive()
-```
-
-
-## proxy_request
+### proxy\_request
 
 `syntax: local res, err = httpc:proxy_request(request_body_chunk_size?)`
 
 Performs a request using the current client request arguments, effectively proxying to the connected upstream. The request body will be read in a streaming fashion, according to `request_body_chunk_size` (see [documentation on the client body reader](#get_client_body_reader) below).
 
 
-## proxy_response
+### proxy\_response
 
 `syntax: httpc:proxy_response(res, chunksize?)`
 
 Sets the current response based on the given `res`. Ensures that hop-by-hop headers are not sent downstream, and will read the response according to `chunksize` (see [documentation on the body reader](#resbody_reader) above).
 
 
-# Utility
-
-## parse_uri
-
-`syntax: local scheme, host, port, path, query? = unpack(httpc:parse_uri(uri, query_in_path?))`
-
-This is a convenience function allowing one to more easily use the generic interface, when the input data is a URI.
-
-As of version `0.10`, the optional `query_in_path` parameter was added, which specifies whether the querystring is to be included in the `path` return value, or separately as its own return value. This defaults to `true` in order to maintain backwards compatibility. When set to `false`, `path` will only include the path, and `query` will contain the URI args, not including the `?` delimiter.
-
-
-## get_client_body_reader
-
-`syntax: reader, err = httpc:get_client_body_reader(chunksize?, sock?)`
-
-Returns an iterator function which can be used to read the downstream client request body in a streaming fashion. You may also specify an optional default chunksize (default is `65536`), or an already established socket in
-place of the client request.
-
-Example:
-
-```lua
-local req_reader = httpc:get_client_body_reader()
-
-repeat
-  local chunk, err = req_reader(8192)
-  if err then
-    ngx.log(ngx.ERR, err)
-    break
-  end
-
-  if chunk then
-    -- process
-  end
-until not chunk
-```
-
-This iterator can also be used as the value for the body field in request params, allowing one to stream the request body into a proxied upstream request.
-
-```lua
-local client_body_reader, err = httpc:get_client_body_reader()
-
-local res, err = httpc:request{
-   path = "/helloworld",
-   body = client_body_reader,
-}
-```
-
-If `sock` is specified,
-
 # Author
 
-James Hurst <james@pintsized.co.uk>
-
-Originally started life based on https://github.com/bakins/lua-resty-http-simple. Cosocket docs and implementation borrowed from the other lua-resty-* cosocket modules.
-
+James Hurst <james@pintsized.co.uk>, with contributions from @hamishforbes, @Tieske, @bungle et al.
 
 # Licence
 
 This module is licensed under the 2-clause BSD license.
 
-Copyright (c) 2013-2016, James Hurst <james@pintsized.co.uk>
+Copyright (c) James Hurst <james@pintsized.co.uk>
 
 All rights reserved.
 
