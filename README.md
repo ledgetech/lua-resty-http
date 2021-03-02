@@ -161,7 +161,7 @@ Attempts to connect to the web server while incorporating the following activiti
 - SSL handshake
 - HTTP proxy configuration
 
-In doing so it will create a distinct connection pool name that is safe to use with SSL and / or proxy based connections, and as such this syntax is strongly recommended over the original [deprecated connection syntax](#TCP-only-connect).
+In doing so it will create a distinct connection pool name that is safe to use with SSL and / or proxy based connections, and as such this syntax is strongly recommended over the original (now deprecated) [TCP only connection syntax](#TCP-only-connect).
 
 The options table has the following fields:
 
