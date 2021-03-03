@@ -181,7 +181,7 @@ do
 end
 
 function _M.tcp_only_connect(self, ...)
-    ngx_log(ngx_WARN, "Use of deprecated `connect` method signature")
+    ngx_log(ngx_DEBUG, "Use of deprecated `connect` method signature")
 
     local sock = self.sock
     if not sock then
@@ -1014,7 +1014,7 @@ end
 -- ----------------------------------------------------------------------------
 
 function _M.ssl_handshake(self, ...)
-    ngx_log(ngx_WARN, "Use of deprecated function `ssl_handshake`")
+    ngx_log(ngx_DEBUG, "Use of deprecated function `ssl_handshake`")
 
     local sock = self.sock
     if not sock then
@@ -1028,7 +1028,7 @@ end
 
 
 function _M.connect_proxy(self, proxy_uri, scheme, host, port, proxy_authorization)
-    ngx_log(ngx_WARN, "Use of deprecated function `connect_proxy`")
+    ngx_log(ngx_DEBUG, "Use of deprecated function `connect_proxy`")
 
     -- Parse the provided proxy URI
     local parsed_proxy_uri, err = self:parse_uri(proxy_uri, false)
@@ -1079,7 +1079,7 @@ end
 
 
 function _M.proxy_request(self, chunksize)
-    ngx_log(ngx_WARN, "Use of deprecated function `proxy_request`")
+    ngx_log(ngx_DEBUG, "Use of deprecated function `proxy_request`")
 
     return self:request({
         method = ngx_req_get_method(),
@@ -1091,7 +1091,7 @@ end
 
 
 function _M.proxy_response(_, response, chunksize)
-    ngx_log(ngx_WARN, "Use of deprecated function `proxy_response`")
+    ngx_log(ngx_DEBUG, "Use of deprecated function `proxy_response`")
 
     if not response then
         ngx_log(ngx_ERR, "no response provided")
