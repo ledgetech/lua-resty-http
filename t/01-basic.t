@@ -1,7 +1,5 @@
-use Test::Nginx::Socket;
+use Test::Nginx::Socket 'no_plan';
 use Cwd qw(cwd);
-
-plan tests => repeat_each() * (blocks() * 4) + 1;
 
 my $pwd = cwd();
 
