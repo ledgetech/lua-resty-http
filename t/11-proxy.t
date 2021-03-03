@@ -60,8 +60,9 @@ X-Test: foo
 --- error_code: 200
 --- no_error_log
 [error]
---- error_log
 [warn]
+--- error_log
+[debug]
 
 
 === TEST 2: Proxy POST request and response
@@ -104,6 +105,8 @@ X-Test: foo
 [error]
 --- error_log
 [warn]
+--- error_log
+[debug]
 
 
 === TEST 3: Proxy multiple headers
@@ -138,8 +141,9 @@ OK
 --- error_code: 200
 --- no_error_log
 [error]
---- error_log
 [warn]
+--- error_log
+[debug]
 
 
 === TEST 4: Proxy still works with spaces in URI
@@ -175,5 +179,6 @@ X-Test: foo
 --- error_code: 200
 --- no_error_log
 [error]
---- error_log
 [warn]
+--- error_log
+[debug]
