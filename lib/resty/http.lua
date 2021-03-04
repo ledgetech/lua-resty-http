@@ -1109,18 +1109,20 @@ function _M.proxy_response(_, response, chunksize)
 
     local reader = response.body_reader
     repeat
-        local chunk, err = reader(chunksize)
+        local chunk, read_err = reader(chunksize)
         if err then
-            ngx_log(ngx_ERR, err)
-            break
+            ngx_log(ngx_ERR, read_err)
         end
 
         if chunk then
-            local res, err = ngx_print(chunk)
+            local res, print_err = ngx_print(chunk)
             if not res then
-                ngx_log(ngx_ERR, err)
-                break
+                ngx_log(ngx_ERR, print_err)
             end
+        end
+
+        if read_err or print_err then
+            break
         end
     until not chunk
 end
