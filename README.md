@@ -6,7 +6,7 @@ Lua HTTP client cosocket driver for [OpenResty](http://openresty.org/) / [ngx\_l
 
 Production ready.
 
-[![Test Actions Status](https://github.com/ledgetech}/lua-resty-http/workflows/Test/badge.svg)](https://github.com/ledgetech/lua-resty-http/actions)
+![Test](https://github.com/ledgetech/lua-resty-http/actions/workflows/test.yml/badge.svg)
 
 ## Features
 
