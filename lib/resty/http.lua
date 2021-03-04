@@ -21,7 +21,6 @@ local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
 local ngx_DEBUG = ngx.DEBUG
 local ngx_ERR = ngx.ERR
-local ngx_WARN = ngx.WARN
 local ngx_var = ngx.var
 local ngx_print = ngx.print
 local ngx_header = ngx.header
@@ -256,7 +255,11 @@ end
 function _M.parse_uri(_, uri, query_in_path)
     if query_in_path == nil then query_in_path = true end
 
-    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//((?:[^\[\]:/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]], "jo")
+    local m, err = ngx_re_match(
+        uri,
+        [[^(?:(http[s]?):)?//((?:[^\[\]:/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]],
+        "jo"
+    )
 
     if not m then
         if err then
@@ -1108,15 +1111,18 @@ function _M.proxy_response(_, response, chunksize)
     end
 
     local reader = response.body_reader
+
     repeat
-        local chunk, read_err = reader(chunksize)
-        if err then
+        local chunk, ok, read_err, print_err
+
+        chunk, read_err = reader(chunksize)
+        if read_err then
             ngx_log(ngx_ERR, read_err)
         end
 
         if chunk then
-            local res, print_err = ngx_print(chunk)
-            if not res then
+            ok, print_err = ngx_print(chunk)
+            if not ok then
                 ngx_log(ngx_ERR, print_err)
             end
         end
