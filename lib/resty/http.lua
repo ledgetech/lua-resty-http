@@ -255,7 +255,11 @@ end
 function _M.parse_uri(_, uri, query_in_path)
     if query_in_path == nil then query_in_path = true end
 
-    local m, err = ngx_re_match(uri, [[^(?:(http[s]?):)?//((?:[^\[\]:/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]], "jo")
+    local m, err = ngx_re_match(
+        uri,
+        [[^(?:(http[s]?):)?//((?:[^\[\]:/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]],
+        "jo"
+    )
 
     if not m then
         if err then
