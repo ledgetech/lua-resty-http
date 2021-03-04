@@ -171,7 +171,7 @@ The options table has the following fields:
 * `pool`: custom connection pool name. Option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect), except that the default will become a pool name constructed using the SSL / proxy properties, which is important for safe connection reuse. When in doubt, leave it blank!
 * `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 * `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-* `proxy_opts`: sub-table, defaults to the global proxy options set, see [set\_proxy\_options](#set-proxy-options).
+* `proxy_opts`: sub-table, defaults to the global proxy options set, see [set\_proxy\_options](#set_proxy_options).
 * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
 * `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 * `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
