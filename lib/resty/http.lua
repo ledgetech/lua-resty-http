@@ -575,11 +575,12 @@ end
 
 
 local function _send_body(sock, body)
-    if type(body) == 'function' then
+    local body_type = type(body)
+    if body_type == "function" then
         repeat
             local chunk, err, partial = body()
 
-            if chunk then
+            if type(chunk) == "string" then
                 local ok, err = sock:send(chunk)
 
                 if not ok then
@@ -590,7 +591,7 @@ local function _send_body(sock, body)
             end
 
         until chunk == nil
-    elseif body ~= nil then
+    elseif body_type == "string" then
         local bytes, err = sock:send(body)
 
         if not bytes then

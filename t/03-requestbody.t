@@ -203,3 +203,35 @@ Expectation Failed
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 5: Non string or function request bodies are ignored
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local httpc = require("resty.http").new()
+
+            for i = 1, 2 do
+                local res, err = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/b", {
+                    body = 12345,
+                })
+                assert(res, err)
+                ngx.print(res.body)
+            end 
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            assert(not next (ngx.req.get_post_args()), "post body should be empty")
+            ngx.print("OK")
+        ';
+    }
+--- request eval
+["GET /a", "GET /a"]
+--- response_body eval
+["OKOK", "OKOK"]
+--- no_error_log
+[error]
+[warn]
