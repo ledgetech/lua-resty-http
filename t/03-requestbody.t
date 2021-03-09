@@ -205,33 +205,115 @@ Expectation Failed
 [warn]
 
 
-=== TEST 5: Non string or function request bodies are ignored
+=== TEST 5: Non string request bodies are converted with correct length
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
         content_by_lua '
             local httpc = require("resty.http").new()
 
-            for i = 1, 2 do
-                local res, err = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/b", {
-                    body = 12345,
-                })
-                assert(res, err)
-                ngx.print(res.body)
-            end 
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+
+            for _, body in ipairs({ 12345,
+                                    true,
+                                    "string",
+                                    { "tab", "le" },
+                                    { "mix", 123, "ed", "tab", "le" } }) do
+
+                local res, err = assert(httpc:request_uri(uri, {
+                    body = body,
+                }))
+
+                ngx.say(res.body)
+            end
         ';
     }
     location = /b {
         content_by_lua '
             ngx.req.read_body()
-            assert(not next (ngx.req.get_post_args()), "post body should be empty")
-            ngx.print("OK")
+            ngx.print(ngx.req.get_body_data())
         ';
     }
---- request eval
-["GET /a", "GET /a"]
---- response_body eval
-["OKOK", "OKOK"]
+--- request
+GET /a
+--- response_body
+12345
+true
+string
+table
+mix123edtable
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 6: Simple API with request body as iterator
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local httpc = require("resty.http").new()
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+
+            local res, err = assert(httpc:request_uri(uri, {
+                body = coroutine.wrap(function()
+                    coroutine.yield("foo")
+                    coroutine.yield("bar")
+                end),
+                headers = {
+                    ["Content-Length"] = 6
+                }
+            }))
+
+            ngx.say(res.body)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            ngx.print(ngx.req.get_body_data())
+        ';
+    }
+--- request
+GET /a
+--- response_body
+foobar
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 7: Simple API with request body as iterator, errors with missing length
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local httpc = require("resty.http").new()
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+
+            local res, err = httpc:request_uri(uri, {
+                body = coroutine.wrap(function()
+                    coroutine.yield("foo")
+                    coroutine.yield("bar")
+                end),
+            })
+
+            assert(not res)
+            ngx.say(err)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            ngx.print(ngx.req.get_body_data())
+        ';
+    }
+--- request
+GET /a
+--- response_body
+Request body is a function but Content-Length is unknown
 --- no_error_log
 [error]
 [warn]
