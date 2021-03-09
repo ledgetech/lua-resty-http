@@ -627,12 +627,13 @@ function _M.send_request(self, params)
     local body = params.body
     local headers = http_headers.new()
 
-    local params_headers = params.headers or {}
-    -- We assign one by one so that the metatable can handle case insensitivity
+    -- We assign one-by-one so that the metatable can handle case insensitivity
     -- for us. You can blame the spec for this inefficiency.
+    local params_headers = params.headers or {}
     for k, v in pairs(params_headers) do
         headers[k] = v
     end
+
     if not headers["Proxy-Authorization"] then
         -- TODO: next major, change this to always override the provided
         -- header. Can't do that yet because it would be breaking.
@@ -644,12 +645,26 @@ function _M.send_request(self, params)
     -- Ensure minimal headers are set
 
     if not headers["Content-Length"] then
-        if type(body) == 'string' then
-            headers["Content-Length"] = #body
+        local body_type = type(body)
+
+        if body_type == "function" then
+            return nil, "Request body is a function but Content-Length is unknown"
+
+        elseif body_type == "table" then
+            local length = 0
+            for _, v in ipairs(body) do
+                length = length + #tostring(v)
+            end
+            headers["Content-Length"] = length
+
         elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
             headers["Content-Length"] = 0
+
+        else
+            headers["Content-Length"] = #tostring(body)
         end
     end
+
     if not headers["Host"] then
         if (str_sub(self.host, 1, 5) == "unix:") then
             return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
