@@ -239,7 +239,7 @@ The `params` table expects the following fields:
 * `path`: The path string. Defaults to `/`.
 * `query`: The query string, presented as either a literal string or Lua table..
 * `headers`: A table of request headers.
-* `body`: The request body as a string, or an iterator function (see [get\_client\_body\_reader](#get_client_body_reader)).
+* `body`: The request body as a string, a table of strings, or an iterator function yielding strings until nil when exhausted (e.g. [get\_client\_body\_reader](#get_client_body_reader)).
 
 When the request is successful, `res` will contain the following fields:
 
