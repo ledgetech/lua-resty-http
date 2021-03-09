@@ -660,7 +660,7 @@ function _M.send_request(self, params)
         elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
             headers["Content-Length"] = 0
 
-        else
+        elseif body ~= nil then
             headers["Content-Length"] = #tostring(body)
         end
     end
