@@ -961,10 +961,9 @@ function _M.get_client_body_reader(_, chunksize, sock)
 
     local headers = ngx_req_get_headers()
     local length = headers.content_length
-    local encoding = headers.transfer_encoding
     if length then
         return _body_reader(sock, tonumber(length), chunksize)
-    elseif encoding and str_lower(encoding) == 'chunked' then
+    elseif transfer_encoding_is_chunked(headers) then
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else
