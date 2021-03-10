@@ -247,7 +247,7 @@ mix123edtable
 [warn]
 
 
-=== TEST 6: Simple API with request body as iterator
+=== TEST 6: Request body as iterator
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -284,7 +284,7 @@ foobar
 [warn]
 
 
-=== TEST 7: Simple API with request body as iterator, errors with missing length
+=== TEST 7: Request body as iterator, errors with missing length
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -313,7 +313,51 @@ foobar
 --- request
 GET /a
 --- response_body
-Request body is a function but Content-Length is unknown
+Request body is a function but a length or chunked encoding is not specified
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 8: Request body as iterator with chunked encoding
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local httpc = require("resty.http").new()
+            local yield = coroutine.yield
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+
+            local res, err = assert(httpc:request_uri(uri, {
+                body = coroutine.wrap(function()
+                    yield("3\r\n")
+                    yield("foo\r\n")
+
+                    yield("3\r\n")
+                    yield("bar\r\n")
+
+                    yield("0\r\n")
+                    yield("\r\n")
+                end),
+                headers = {
+                    ["Transfer-Encoding"] = "chunked"
+                }
+            }))
+
+            ngx.say(res.body)
+        }
+    }
+    location = /b {
+        content_by_lua '
+            ngx.req.read_body()
+            ngx.print(ngx.req.get_body_data())
+        ';
+    }
+--- request
+GET /a
+--- response_body
+foobar
 --- no_error_log
 [error]
 [warn]

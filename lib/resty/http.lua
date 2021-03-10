@@ -398,6 +398,25 @@ local function _receive_headers(sock)
 end
 
 
+local function transfer_encoding_is_chunked(headers)
+    local te = headers["Transfer-Encoding"]
+
+    -- Handle duplicate headers
+    -- This shouldn't happen but can in the real world
+    if type(te) == "table" then
+        te = tbl_concat(te, "")
+    end
+
+    local ok, encoding = pcall(str_lower, te)
+    if not ok then
+        encoding = ""
+    end
+
+    return str_find(encoding, "chunked", 1, true) ~= nil
+end
+_M.transfer_encoding_is_chunked = transfer_encoding_is_chunked
+
+
 local function _chunked_body_reader(sock, default_chunk_size)
     return co_wrap(function(max_chunk_size)
         local remaining = 0
@@ -648,7 +667,9 @@ function _M.send_request(self, params)
         local body_type = type(body)
 
         if body_type == "function" then
-            return nil, "Request body is a function but Content-Length is unknown"
+            if not transfer_encoding_is_chunked(headers) then
+                return nil, "Request body is a function but a length or chunked encoding is not specified"
+            end
 
         elseif body_type == "table" then
             local length = 0
@@ -766,22 +787,8 @@ function _M.read_response(self, params)
     if _should_receive_body(params.method, status) then
         has_body = true
 
-        local te = res_headers["Transfer-Encoding"]
-
-        -- Handle duplicate headers
-        -- This shouldn't happen but can in the real world
-        if type(te) == "table" then
-            te = tbl_concat(te, "")
-        end
-
-        local ok, encoding = pcall(str_lower, te)
-        if not ok then
-            encoding = ""
-        end
-
-        if version == 1.1 and str_find(encoding, "chunked", 1, true) ~= nil then
+        if version == 1.1 and transfer_encoding_is_chunked(res_headers) then
             body_reader, err = _chunked_body_reader(sock)
-
         else
             local ok, length = pcall(tonumber, res_headers["Content-Length"])
             if not ok then
@@ -790,9 +797,7 @@ function _M.read_response(self, params)
             end
 
             body_reader, err = _body_reader(sock, length)
-
         end
-
     end
 
     if res_headers["Trailer"] then
