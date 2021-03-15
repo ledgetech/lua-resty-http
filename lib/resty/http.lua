@@ -400,19 +400,17 @@ end
 
 local function transfer_encoding_is_chunked(headers)
     local te = headers["Transfer-Encoding"]
+    if not te then
+        return false
+    end
 
     -- Handle duplicate headers
     -- This shouldn't happen but can in the real world
-    if type(te) == "table" then
-        te = tbl_concat(te, "")
+    if type(te) ~= "string" then
+        te = tbl_concat(te, ",")
     end
 
-    local ok, encoding = pcall(str_lower, te)
-    if not ok then
-        encoding = ""
-    end
-
-    return str_find(encoding, "chunked", 1, true) ~= nil
+    return str_find(str_lower(te), "chunked", 1, true) ~= nil
 end
 _M.transfer_encoding_is_chunked = transfer_encoding_is_chunked
 
