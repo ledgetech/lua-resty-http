@@ -238,3 +238,35 @@ table
 --- no_error_log
 [error]
 [warn]
+
+
+=== TEST 5: transfer_encoding_is_chunked utility.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local http_headers = require("resty.http_headers")
+            local http = require("resty.http")
+
+            local headers = http_headers:new()
+            assert(http.transfer_encoding_is_chunked(headers) == false,
+                "empty headers should return false")
+
+            headers["Transfer-Encoding"] = "chunked"
+            assert(http.transfer_encoding_is_chunked(headers) == true,
+                "te set to `chunked` should return true`")
+
+            headers["Transfer-Encoding"] = " ChuNkEd "
+            assert(http.transfer_encoding_is_chunked(headers) == true,
+                "te set to ` ChuNkEd ` should return true`")
+
+            headers["Transfer-Encoding"] = { "chunked", " ChuNkEd " }
+            assert(http.transfer_encoding_is_chunked(headers) == true,
+                "te set to table values containing `chunked` should return true`")
+        }
+    }
+--- request
+GET /a
+--- no_error_log
+[error]
+[warn]

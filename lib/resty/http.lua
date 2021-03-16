@@ -398,6 +398,23 @@ local function _receive_headers(sock)
 end
 
 
+local function transfer_encoding_is_chunked(headers)
+    local te = headers["Transfer-Encoding"]
+    if not te then
+        return false
+    end
+
+    -- Handle duplicate headers
+    -- This shouldn't happen but can in the real world
+    if type(te) ~= "string" then
+        te = tbl_concat(te, ",")
+    end
+
+    return str_find(str_lower(te), "chunked", 1, true) ~= nil
+end
+_M.transfer_encoding_is_chunked = transfer_encoding_is_chunked
+
+
 local function _chunked_body_reader(sock, default_chunk_size)
     return co_wrap(function(max_chunk_size)
         local remaining = 0
@@ -575,7 +592,7 @@ end
 
 
 local function _send_body(sock, body)
-    if type(body) == 'function' then
+    if type(body) == "function" then
         repeat
             local chunk, err, partial = body()
 
@@ -627,12 +644,13 @@ function _M.send_request(self, params)
     local body = params.body
     local headers = http_headers.new()
 
-    local params_headers = params.headers or {}
-    -- We assign one by one so that the metatable can handle case insensitivity
+    -- We assign one-by-one so that the metatable can handle case insensitivity
     -- for us. You can blame the spec for this inefficiency.
+    local params_headers = params.headers or {}
     for k, v in pairs(params_headers) do
         headers[k] = v
     end
+
     if not headers["Proxy-Authorization"] then
         -- TODO: next major, change this to always override the provided
         -- header. Can't do that yet because it would be breaking.
@@ -644,12 +662,28 @@ function _M.send_request(self, params)
     -- Ensure minimal headers are set
 
     if not headers["Content-Length"] then
-        if type(body) == 'string' then
-            headers["Content-Length"] = #body
+        local body_type = type(body)
+
+        if body_type == "function" then
+            if not transfer_encoding_is_chunked(headers) then
+                return nil, "Request body is a function but a length or chunked encoding is not specified"
+            end
+
+        elseif body_type == "table" then
+            local length = 0
+            for _, v in ipairs(body) do
+                length = length + #tostring(v)
+            end
+            headers["Content-Length"] = length
+
         elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
             headers["Content-Length"] = 0
+
+        elseif body ~= nil then
+            headers["Content-Length"] = #tostring(body)
         end
     end
+
     if not headers["Host"] then
         if (str_sub(self.host, 1, 5) == "unix:") then
             return nil, "Unable to generate a useful Host header for a unix domain socket. Please provide one."
@@ -751,22 +785,8 @@ function _M.read_response(self, params)
     if _should_receive_body(params.method, status) then
         has_body = true
 
-        local te = res_headers["Transfer-Encoding"]
-
-        -- Handle duplicate headers
-        -- This shouldn't happen but can in the real world
-        if type(te) == "table" then
-            te = tbl_concat(te, "")
-        end
-
-        local ok, encoding = pcall(str_lower, te)
-        if not ok then
-            encoding = ""
-        end
-
-        if version == 1.1 and str_find(encoding, "chunked", 1, true) ~= nil then
+        if version == 1.1 and transfer_encoding_is_chunked(res_headers) then
             body_reader, err = _chunked_body_reader(sock)
-
         else
             local ok, length = pcall(tonumber, res_headers["Content-Length"])
             if not ok then
@@ -775,9 +795,7 @@ function _M.read_response(self, params)
             end
 
             body_reader, err = _body_reader(sock, length)
-
         end
-
     end
 
     if res_headers["Trailer"] then
@@ -941,10 +959,9 @@ function _M.get_client_body_reader(_, chunksize, sock)
 
     local headers = ngx_req_get_headers()
     local length = headers.content_length
-    local encoding = headers.transfer_encoding
     if length then
         return _body_reader(sock, tonumber(length), chunksize)
-    elseif encoding and str_lower(encoding) == 'chunked' then
+    elseif transfer_encoding_is_chunked(headers) then
         -- Not yet supported by ngx_lua but should just work...
         return _chunked_body_reader(sock, chunksize)
     else

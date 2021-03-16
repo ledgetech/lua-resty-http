@@ -64,3 +64,59 @@ OK
 [error]
 [warn]
 
+
+=== TEST 2: Read request body
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local httpc = require("resty.http").new()
+
+            local reader, err = assert(httpc:get_client_body_reader())
+
+            repeat
+                local buffer, err = reader()
+                if err then
+                    ngx.log(ngx.ERR, err)
+                end
+
+                if buffer then
+                    ngx.print(buffer)
+                end
+            until not buffer
+        }
+    }
+--- request
+POST /a
+foobar
+--- response_body: foobar
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 2: Read chunked request body, errors as not yet supported
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local httpc = require("resty.http").new()
+            local _, err = httpc:get_client_body_reader()
+            ngx.log(ngx.ERR, err)
+        }
+    }
+--- more_headers
+Transfer-Encoding: chunked
+--- request eval
+"POST /a
+3\r
+foo\r
+3\r
+bar\r
+0\r
+\r
+"
+--- error_log
+chunked request bodies not supported yet
+--- no_error_log
+[warn]
