@@ -213,7 +213,7 @@ local function connect(self, options)
 
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ok, err = self:ssl_handshake(nil, ssl_server_name, ssl_verify, ssl_send_status_req)
+        local ok, err = sock:sslhandshake(nil, ssl_server_name, ssl_verify, ssl_send_status_req)
         if not ok then
             self:close()
             return nil, err
