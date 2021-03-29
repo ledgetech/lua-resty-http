@@ -67,6 +67,7 @@ Host: www.google.com
             local http = require "resty.http"
             local httpc = http.new()
 
+            httpc:set_timeouts(300, 1000, 1000)
             local res, err = httpc:request_uri("https://www.google.com:443", { ssl_verify = false })
         ';
     }

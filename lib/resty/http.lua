@@ -659,28 +659,37 @@ function _M.send_request(self, params)
         headers["Proxy-Authorization"] = self.http_proxy_auth
     end
 
-    -- Ensure minimal headers are set
+    -- Ensure we have appropriate message length or encoding.
+    do
+        local is_chunked = transfer_encoding_is_chunked(headers)
 
-    if not headers["Content-Length"] then
-        local body_type = type(body)
+        if is_chunked then
+            -- If we have both Transfer-Encoding and Content-Length we MUST
+            -- drop the Content-Length, to help prevent request smuggling.
+            -- https://tools.ietf.org/html/rfc7230#section-3.3.3
+            headers["Content-Length"] = nil
 
-        if body_type == "function" then
-            if not transfer_encoding_is_chunked(headers) then
+        elseif not headers["Content-Length"] then
+            -- A length was not given, try to calculate one.
+
+            local body_type = type(body)
+
+            if body_type == "function" then
                 return nil, "Request body is a function but a length or chunked encoding is not specified"
+
+            elseif body_type == "table" then
+                local length = 0
+                for _, v in ipairs(body) do
+                    length = length + #tostring(v)
+                end
+                headers["Content-Length"] = length
+
+            elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
+                headers["Content-Length"] = 0
+
+            elseif body ~= nil then
+                headers["Content-Length"] = #tostring(body)
             end
-
-        elseif body_type == "table" then
-            local length = 0
-            for _, v in ipairs(body) do
-                length = length + #tostring(v)
-            end
-            headers["Content-Length"] = length
-
-        elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
-            headers["Content-Length"] = 0
-
-        elseif body ~= nil then
-            headers["Content-Length"] = #tostring(body)
         end
     end
 

@@ -263,10 +263,62 @@ table
             headers["Transfer-Encoding"] = { "chunked", " ChuNkEd " }
             assert(http.transfer_encoding_is_chunked(headers) == true,
                 "te set to table values containing `chunked` should return true`")
+
+            headers["Transfer-Encoding"] = "chunked"
+            headers["Content-Length"] = 10
+            assert(http.transfer_encoding_is_chunked(headers) == true,
+                "transfer encoding should override content-length`")
         }
     }
 --- request
 GET /a
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 6: Don't send Content-Length if Transfer-Encoding is specified
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local httpc = require("resty.http").new()
+            local yield = coroutine.yield
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+
+            local res, err = assert(httpc:request_uri(uri, {
+                body = coroutine.wrap(function()
+                    yield("3\r\n")
+                    yield("foo\r\n")
+
+                    yield("3\r\n")
+                    yield("bar\r\n")
+
+                    yield("0\r\n")
+                    yield("\r\n")
+                end),
+                headers = {
+                    ["Transfer-Encoding"] = "chunked",
+                    ["Content-Length"] = 42,
+                },
+            }))
+
+            ngx.say(res.body)
+        }
+    }
+    location = /b {
+        content_by_lua_block {
+            ngx.req.read_body()
+            ngx.say(ngx.req.get_headers()["Content-Length"])
+            ngx.print(ngx.req.get_body_data())
+        }
+    }
+--- request
+GET /a
+--- response_body
+nil
+foobar
 --- no_error_log
 [error]
 [warn]
