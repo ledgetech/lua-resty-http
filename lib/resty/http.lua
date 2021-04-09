@@ -899,6 +899,7 @@ function _M.request_uri(self, uri, params)
         params.scheme, params.host, params.port, path, query = unpack(parsed_uri)
         params.path = params.path or path
         params.query = params.query or query
+        params.ssl_server_name = params.ssl_server_name or params.host
     end
 
     do

@@ -255,7 +255,7 @@ When the request is successful, `res` will contain the following fields:
 
 `syntax: res, err = httpc:request_uri(uri, params)`
 
-The single-shot interface (see [usage](#Usage)). Since this method performs an entire end-to-end request, options specified in the `params` can include anything found in both [connect](#connect) and [request](#request) documented above. Note also that fields in `params` will override relevant components of the `uri` if specified.
+The single-shot interface (see [usage](#Usage)). Since this method performs an entire end-to-end request, options specified in the `params` can include anything found in both [connect](#connect) and [request](#request) documented above. Note also that fields `path`, and `query`, in `params` will override relevant components of the `uri` if specified (`scheme`, `host`, and `port` will always be taken from the `uri`).
 
 There are 3 additional parameters for controlling keepalives:
 
