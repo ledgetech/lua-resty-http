@@ -93,7 +93,7 @@ local httpc = require("resty.http").new()
 -- First establish a connection
 local ok, err = httpc:connect({
     scheme = "https",
-    host = "127.0.0.1"
+    host = "127.0.0.1",
     port = 8080,
 })
 if not ok then
