@@ -341,3 +341,27 @@ OK
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 13: Should return error on broken response status line
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://127.0.0.1:12345")
+
+            assert(err, "there must be an error")
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_reply
+TEAPOT/1.1 OMG
+Server: Teapot
+
+OK
+--- request
+GET /a
+--- no_error_log
+[error]
+[warn]
