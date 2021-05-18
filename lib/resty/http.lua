@@ -362,7 +362,21 @@ local function _receive_status(sock)
         return nil, nil, nil, err
     end
 
-    return tonumber(str_sub(line, 10, 12)), tonumber(str_sub(line, 6, 8)), str_sub(line, 14)
+    local version = tonumber(str_sub(line, 6, 8))
+    if not version then
+        return nil, nil, nil,
+               "couldn't parse HTTP version from response status line: " .. line
+    end
+
+    local status = tonumber(str_sub(line, 10, 12))
+    if not status then
+        return nil, nil, nil,
+               "couldn't parse status code from response status line: " .. line
+    end
+
+    local reason = str_sub(line, 14)
+
+    return status, version, reason
 end
 
 
