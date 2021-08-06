@@ -341,3 +341,51 @@ OK
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 13: Should return error on invalid HTTP version in response status line
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://127.0.0.1:12345")
+
+            assert(err == "couldn't parse HTTP version from response status line: TEAPOT/1.1 OMG")
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_reply
+TEAPOT/1.1 OMG
+Server: Teapot
+
+OK
+--- request
+GET /a
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 14: Should return error on invalid status code in response status line
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://127.0.0.1:12345")
+
+            assert(err == "couldn't parse status code from response status line: HTTP/1.1 OMG")
+        }
+    }
+--- tcp_listen: 12345
+--- tcp_reply
+HTTP/1.1 OMG
+Server: Teapot
+
+OK
+--- request
+GET /a
+--- no_error_log
+[error]
+[warn]
