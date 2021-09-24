@@ -22,6 +22,7 @@ client:connect {
     backlog = nil,
 
     -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
+    ssl_reused_session = nil
     ssl_server_name = nil,
     ssl_send_status_req = nil,
     ssl_verify = true,      -- NOTE: defaults to true
@@ -53,9 +54,10 @@ local function connect(self, options)
     end
 
     -- ssl settings
-    local ssl, ssl_server_name, ssl_verify, ssl_send_status_req
+    local ssl, ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req
     if request_scheme == "https" then
         ssl = true
+        ssl_reused_session = options.ssl_reused_session
         ssl_server_name = options.ssl_server_name
         ssl_send_status_req = options.ssl_send_status_req
         ssl_verify = true -- default
@@ -213,8 +215,9 @@ local function connect(self, options)
 
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ok, err = sock:sslhandshake(nil, ssl_server_name, ssl_verify, ssl_send_status_req)
-        if not ok then
+        local ssl_session
+        ssl_session, err = sock:sslhandshake(ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req)
+        if not ssl_session then
             self:close()
             return nil, err
         end
