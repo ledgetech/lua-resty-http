@@ -215,9 +215,9 @@ local function connect(self, options)
         end
     end
 
+    local ssl_session
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ssl_session
         ssl_session, err = sock:sslhandshake(ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req)
         if not ssl_session then
             self:close()
@@ -233,7 +233,7 @@ local function connect(self, options)
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
     self.path_prefix = path_prefix
 
-    return true
+    return true, nil, ssl_session
 end
 
 return connect
