@@ -524,13 +524,19 @@ response not fully read
 [error]
 [warn]
 
-=== TEST 10 Pooling connection immediately after creation should work
+=== TEST 10 Pooling connection immediately after connecting should work
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
         content_by_lua '
             local http = require "resty.http"
             local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
             ngx.say(httpc:set_keepalive())
         ';
     }

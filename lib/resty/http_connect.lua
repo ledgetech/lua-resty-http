@@ -263,6 +263,8 @@ local function connect(self, options)
 
     self.host = request_host
     self.port = request_port
+    -- Immediately after connection - keepalive should be possible
+    self.keepalive_ready = true
     self.keepalive_supported = true
     self.ssl = ssl
     -- set only for http, https has already been handled
