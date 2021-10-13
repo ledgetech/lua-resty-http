@@ -523,3 +523,67 @@ response not fully read
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 10 Pooling connection immediately after creation should work
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            ngx.say(httpc:set_keepalive())
+        ';
+    }
+--- request
+GET /a
+--- response_body
+1
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 11 Reusing client still checks pooling is ready
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
+
+            local res, err = httpc:request{
+                path = "/b"
+            }
+
+            local body = res:read_body()
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            res, err = httpc:request{
+                path = "/b"
+            }
+            local ok
+            ok, err = httpc:set_keepalive())
+            ngx.say(err)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+1
+response not fully read
+--- no_error_log
+[error]
+[warn]
