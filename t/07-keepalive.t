@@ -432,3 +432,93 @@ connection must be closed
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 8 Generic interface, Connection: Keep-alive. pool_only_after_response is on. Test the connection is reused.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
+
+            local res, err = httpc:request{
+                path = "/b"
+            }
+
+            local body = res:read_body()
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+1
+1
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 9 Generic interface, Connection: Keep-alive. pool_only_after_response is on. Don't read body and check connection isn't reused
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
+
+            local res, err = httpc:request{
+                path = "/b"
+            }
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+0
+0
+--- no_error_log
+[error]
+[warn]
