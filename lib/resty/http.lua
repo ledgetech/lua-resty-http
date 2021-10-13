@@ -135,7 +135,7 @@ function _M.new(_)
         return nil, err
     end
     return setmetatable({
-        sock = sock, keepalive_supported = true, keepalive_ready = false, pool_only_after_response = false
+        sock = sock, keepalive_supported = true, keepalive_ready = true, pool_only_after_response = false
     }, mt)
 end
 
