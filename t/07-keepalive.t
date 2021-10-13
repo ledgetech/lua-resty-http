@@ -498,7 +498,8 @@ keep-alive
             }
 
             ngx.say(res.headers["Connection"])
-            ngx.say(httpc:set_keepalive())
+            local ok, err = httpc:set_keepalive()
+            ngx.say(err)
 
             httpc:connect({
                 scheme = "http",
@@ -517,7 +518,7 @@ keep-alive
 GET /a
 --- response_body
 keep-alive
-0
+response not fully read
 0
 --- no_error_log
 [error]
