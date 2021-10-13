@@ -569,7 +569,7 @@ GET /a
                 path = "/b"
             }
             local ok
-            ok, err = httpc:set_keepalive())
+            ok, err = httpc:set_keepalive()
             ngx.say(err)
         ';
     }
