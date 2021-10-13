@@ -676,6 +676,9 @@ function _M.send_request(self, params)
     -- Apply defaults
     setmetatable(params, { __index = DEFAULT_PARAMS })
 
+    -- Sending a new request makes keepalive disabled until its response is fully read
+    self.keepalive_ready = false
+
     local sock = self.sock
     local body = params.body
     local headers = http_headers.new()
