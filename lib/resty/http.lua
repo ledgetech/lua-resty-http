@@ -134,7 +134,9 @@ function _M.new(_)
     if not sock then
         return nil, err
     end
-    return setmetatable({ sock = sock, keepalive = true }, mt)
+    return setmetatable({
+        sock = sock, keepalive_supported = true, keepalive_ready = false, pool_only_after_response = false
+    }, mt)
 end
 
 
@@ -195,7 +197,7 @@ function _M.tcp_only_connect(self, ...)
         self.port = nil
     end
 
-    self.keepalive = true
+    self.keepalive_supported = true
     self.ssl = false
 
     return sock:connect(...)
@@ -208,7 +210,11 @@ function _M.set_keepalive(self, ...)
         return nil, "not initialized"
     end
 
-    if self.keepalive == true then
+    if self.keepalive_supported == true then
+        if self.pool_only_after_response and not self.keepalive_ready then
+            return nil, "response not fully read"
+        end
+
         return sock:setkeepalive(...)
     else
         -- The server said we must close the connection, so we cannot setkeepalive.
@@ -429,7 +435,18 @@ end
 _M.transfer_encoding_is_chunked = transfer_encoding_is_chunked
 
 
-local function _chunked_body_reader(sock, default_chunk_size)
+local function _reader_keepalive_ready_mark(http_client)
+    return co_wrap(function()
+        http_client.keepalive_ready = true
+    end)
+end
+
+local function _reader_keepalive_ready_no_op()
+    return co_wrap(function() end)
+end
+
+
+local function _chunked_body_reader(keepalive_ready_callback, sock, default_chunk_size)
     return co_wrap(function(max_chunk_size)
         local remaining = 0
         local length
@@ -487,11 +504,13 @@ local function _chunked_body_reader(sock, default_chunk_size)
             end
 
         until length == 0
+
+        keepalive_ready_callback()
     end)
 end
 
 
-local function _body_reader(sock, content_length, default_chunk_size)
+local function _body_reader(keepalive_ready_callback, sock, content_length, default_chunk_size)
     return co_wrap(function(max_chunk_size)
         max_chunk_size = max_chunk_size or default_chunk_size
 
@@ -521,6 +540,7 @@ local function _body_reader(sock, content_length, default_chunk_size)
         elseif not max_chunk_size then
             -- We have a length and potentially keep-alive, but want everything.
             co_yield(sock:receive(content_length))
+            keepalive_ready_callback()
 
         else
             -- We have a length and potentially a keep-alive, and wish to stream
@@ -549,6 +569,7 @@ local function _body_reader(sock, content_length, default_chunk_size)
                 end
 
             until length == 0
+            keepalive_ready_callback()
         end
     end)
 end
@@ -587,9 +608,10 @@ local function _read_body(res)
 end
 
 
-local function _trailer_reader(sock)
+local function _trailer_reader(keepalive_ready_callback, sock)
     return co_wrap(function()
         co_yield(_receive_headers(sock))
+        keepalive_ready_callback()
     end)
 end
 
@@ -781,7 +803,8 @@ function _M.read_response(self, params)
     end
 
 
-    local res_headers, err = _receive_headers(sock)
+    local res_headers
+    res_headers, err = _receive_headers(sock)
     if not res_headers then
         return nil, err
     end
@@ -791,38 +814,48 @@ function _M.read_response(self, params)
     if ok then
         if (version == 1.1 and str_find(connection, "close", 1, true)) or
            (version == 1.0 and not str_find(connection, "keep-alive", 1, true)) then
-            self.keepalive = false
+            self.keepalive_supported = false
         end
     else
         -- no connection header
         if version == 1.0 then
-            self.keepalive = false
+            self.keepalive_supported = false
         end
     end
 
     local body_reader = _no_body_reader
-    local trailer_reader, err
+    local trailer_reader
     local has_body = false
+    local has_trailer = false
+    -- If there are no trailers - fully reading response body means socket is ready to be pooled
+    local body_reader_keepalive_ready_callback = _reader_keepalive_ready_mark(self)
+
+    if res_headers["Trailer"] then
+        has_trailer = true
+        -- If there are trailers - fully reading response body doesn't mean socket is ready to be pooled
+        body_reader_keepalive_ready_callback = _reader_keepalive_ready_no_op()
+    end
 
     -- Receive the body_reader
     if _should_receive_body(params.method, status) then
         has_body = true
 
         if version == 1.1 and transfer_encoding_is_chunked(res_headers) then
-            body_reader, err = _chunked_body_reader(sock)
+            body_reader, err = _chunked_body_reader(body_reader_keepalive_ready_callback, sock)
         else
-            local ok, length = pcall(tonumber, res_headers["Content-Length"])
+            local length
+            ok, length = pcall(tonumber, res_headers["Content-Length"])
             if not ok then
                 -- No content-length header, read until connection is closed by server
                 length = nil
             end
 
-            body_reader, err = _body_reader(sock, length)
+            body_reader, err = _body_reader(body_reader_keepalive_ready_callback, sock, length)
         end
     end
 
-    if res_headers["Trailer"] then
-        trailer_reader, err = _trailer_reader(sock)
+    if has_trailer then
+        trailer_reader, err = _trailer_reader(_reader_keepalive_ready_mark(self), sock)
     end
 
     if err then
@@ -981,13 +1014,14 @@ function _M.get_client_body_reader(_, chunksize, sock)
         end
     end
 
+    local reader_keep_alive_ready_callback = _reader_keepalive_ready_no_op()
     local headers = ngx_req_get_headers()
     local length = headers.content_length
     if length then
-        return _body_reader(sock, tonumber(length), chunksize)
+        return _body_reader(reader_keep_alive_ready_callback, sock, tonumber(length), chunksize)
     elseif transfer_encoding_is_chunked(headers) then
         -- Not yet supported by ngx_lua but should just work...
-        return _chunked_body_reader(sock, chunksize)
+        return _chunked_body_reader(reader_keep_alive_ready_callback, sock, chunksize)
     else
         return nil
     end

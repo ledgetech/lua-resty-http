@@ -16,19 +16,20 @@ be kept alive.
 Call it with a single options table as follows:
 
 client:connect {
-    scheme = "https"        -- scheme to use, or nil for unix domain socket
-    host = "myhost.com",    -- target machine, or a unix domain socket
-    port = nil,             -- port on target machine, will default to 80/443 based on scheme
-    pool = nil,             -- connection pool name, leave blank! this function knows best!
-    pool_size = nil,        -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
+    scheme = "https"                  -- scheme to use, or nil for unix domain socket
+    host = "myhost.com",              -- target machine, or a unix domain socket
+    port = nil,                       -- port on target machine, will default to 80/443 based on scheme
+    pool = nil,                       -- connection pool name, leave blank! this function knows best!
+    pool_size = nil,                  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
     backlog = nil,
+    pool_only_after_response = false, -- only allow set_keepalive() after http response fully read
 
     -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
     ssl_reused_session = nil
     ssl_server_name = nil,
     ssl_send_status_req = nil,
-    ssl_verify = true,      -- NOTE: defaults to true
-    ctx = nil,              -- NOTE: not supported
+    ssl_verify = true,                -- NOTE: defaults to true
+    ctx = nil,                        -- NOTE: not supported
 
     -- mTLS options (experimental!)
     --
@@ -43,7 +44,7 @@ client:connect {
     ssl_client_cert = nil,
     ssl_client_priv_key = nil,
 
-    proxy_opts,             -- proxy opts, defaults to global proxy options
+    proxy_opts,                       -- proxy opts, defaults to global proxy options
 }
 ]]
 local function connect(self, options)
@@ -60,6 +61,7 @@ local function connect(self, options)
 
     local poolname = options.pool
     local pool_size = options.pool_size
+    local pool_only_after_response = options.pool_only_after_response
     local backlog = options.backlog
 
     if request_scheme and not request_port then
@@ -261,11 +263,12 @@ local function connect(self, options)
 
     self.host = request_host
     self.port = request_port
-    self.keepalive = true
+    self.keepalive_supported = true
     self.ssl = ssl
     -- set only for http, https has already been handled
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
     self.path_prefix = path_prefix
+    self.pool_only_after_response = pool_only_after_response
 
     return true, nil, ssl_session
 end
