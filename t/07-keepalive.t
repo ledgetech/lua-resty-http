@@ -565,6 +565,13 @@ GET /a
             ngx.say(res.headers["Connection"])
             ngx.say(httpc:set_keepalive())
 
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
+            ngx.say(httpc:get_reused_times())
             res, err = httpc:request{
                 path = "/b"
             }
@@ -582,6 +589,7 @@ GET /a
 GET /a
 --- response_body
 keep-alive
+1
 1
 response not fully read
 --- no_error_log
