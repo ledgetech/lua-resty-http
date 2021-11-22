@@ -91,7 +91,7 @@ local body   = res.body
 local httpc = require("resty.http").new()
 
 -- First establish a connection
-local ok, err = httpc:connect({
+local ok, err, ssl_session = httpc:connect({
     scheme = "https",
     host = "127.0.0.1",
     port = 8080,
@@ -153,7 +153,7 @@ Creates the HTTP connection object. In case of failures, returns `nil` and a str
 
 ## connect
 
-`syntax: ok, err = httpc:connect(options)`
+`syntax: ok, err, ssl_session = httpc:connect(options)`
 
 Attempts to connect to the web server while incorporating the following activities:
 
@@ -172,6 +172,7 @@ The options table has the following fields:
 * `pool_size`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 * `backlog`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 * `proxy_opts`: sub-table, defaults to the global proxy options set, see [set\_proxy\_options](#set_proxy_options).
+* `ssl_reused_session`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
 * `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 * `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
