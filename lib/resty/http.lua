@@ -165,7 +165,7 @@ end
 do
     local aio_connect = require "resty.http_connect"
     -- Function signatures to support:
-    -- ok, err = httpc:connect(options_table)
+    -- ok, err, ssl_session = httpc:connect(options_table)
     -- ok, err = httpc:connect(host, port, options_table?)
     -- ok, err = httpc:connect("unix:/path/to/unix.sock", options_table?)
     function _M.connect(self, options, ...)

@@ -22,6 +22,7 @@ client:connect {
     backlog = nil,
 
     -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
+    ssl_reused_session = nil
     ssl_server_name = nil,
     ssl_send_status_req = nil,
     ssl_verify = true,      -- NOTE: defaults to true
@@ -53,9 +54,10 @@ local function connect(self, options)
     end
 
     -- ssl settings
-    local ssl, ssl_server_name, ssl_verify, ssl_send_status_req
+    local ssl, ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req
     if request_scheme == "https" then
         ssl = true
+        ssl_reused_session = options.ssl_reused_session
         ssl_server_name = options.ssl_server_name
         ssl_send_status_req = options.ssl_send_status_req
         ssl_verify = true -- default
@@ -133,7 +135,8 @@ local function connect(self, options)
     end
 
     if proxy then
-        local proxy_uri_t, err = self:parse_uri(proxy_uri)
+        local proxy_uri_t
+        proxy_uri_t, err = self:parse_uri(proxy_uri)
         if not proxy_uri_t then
             return nil, err
         end
@@ -178,7 +181,8 @@ local function connect(self, options)
             -- authority-form of RFC 7230 Section 5.3.3. See also RFC 7231 Section
             -- 4.3.6 for more details about the CONNECT request
             local destination = request_host .. ":" .. request_port
-            local res, err = self:request({
+            local res
+            res, err = self:request({
                 method = "CONNECT",
                 path = destination,
                 headers = {
@@ -211,10 +215,11 @@ local function connect(self, options)
         end
     end
 
+    local ssl_session
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
-        local ok, err = sock:sslhandshake(nil, ssl_server_name, ssl_verify, ssl_send_status_req)
-        if not ok then
+        ssl_session, err = sock:sslhandshake(ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req)
+        if not ssl_session then
             self:close()
             return nil, err
         end
@@ -228,7 +233,7 @@ local function connect(self, options)
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
     self.path_prefix = path_prefix
 
-    return true
+    return true, nil, ssl_session
 end
 
 return connect
