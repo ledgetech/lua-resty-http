@@ -48,14 +48,18 @@ local function connect(self, options)
     local backlog = options.backlog
 
     if request_scheme and not request_port then
-        request_port = (request_scheme == "https" and 443 or 80)
+        if request_scheme == "https" or request_scheme == "wss" then
+            request_port = 443
+        else
+            request_port = 80
+        end
     elseif request_port and not request_scheme then
         return nil, "'scheme' is required when providing a port"
     end
 
     -- ssl settings
     local ssl, ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req
-    if request_scheme == "https" then
+    if request_scheme == "https" or request_scheme == "wss" then
         ssl = true
         ssl_reused_session = options.ssl_reused_session
         ssl_server_name = options.ssl_server_name
@@ -71,7 +75,7 @@ local function connect(self, options)
     proxy = options.proxy_opts or self.proxy_opts
 
     if proxy then
-        if request_scheme == "https" then
+        if request_scheme == "https" or request_scheme == "wss" then
             proxy_uri = proxy.https_proxy
             proxy_authorization = proxy.https_proxy_authorization
         else
@@ -159,9 +163,9 @@ local function connect(self, options)
                    .. ":" .. (ssl_server_name or "")
                    .. ":" .. tostring(ssl_verify)
                    .. ":" .. (proxy_uri or "")
-                   .. ":" .. (request_scheme == "https" and proxy_authorization or "")
+                   .. ":" .. ((request_scheme == "https" or request_scheme == "wss") and proxy_authorization or "")
         -- in the above we only add the 'proxy_authorization' as part of the poolname
-        -- when the request is https. Because in that case the CONNECT request (which
+        -- when the request uses SSL. Because in that case the CONNECT request (which
         -- carries the authorization header) is part of the connect procedure, whereas
         -- with a plain http request the authorization is part of the actual request.
     end
@@ -229,8 +233,8 @@ local function connect(self, options)
     self.port = request_port
     self.keepalive = true
     self.ssl = ssl
-    -- set only for http, https has already been handled
-    self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
+    -- set only for plain connections (http / ws), SSL connections (https / wss) were already handled
+    self.http_proxy_auth = (request_scheme ~= "https" and request_scheme ~= "wss") and proxy_authorization or nil
     self.path_prefix = path_prefix
 
     return true, nil, ssl_session

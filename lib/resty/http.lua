@@ -257,7 +257,7 @@ function _M.parse_uri(_, uri, query_in_path)
 
     local m, err = ngx_re_match(
         uri,
-        [[^(?:(http[s]?):)?//((?:[^\[\]:/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]],
+        [[^(?:((?:http|ws)[s]?):)?\/\/((?:[^\[\]:\/\?]+)|(?:\[.+\]))(?::(\d+))?([^\?]*)\??(.*)]],
         "jo"
     )
 
@@ -289,7 +289,7 @@ function _M.parse_uri(_, uri, query_in_path)
         if m[3] then
             m[3] = tonumber(m[3])
         else
-            if m[1] == "https" then
+            if m[1] == "https" or m[1] == "wss" then
                 m[3] = 443
             else
                 m[3] = 80
