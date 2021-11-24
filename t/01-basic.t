@@ -425,7 +425,6 @@ GET /a
 GET /a
 --- response_body
 Switching Protocols
-OK
 --- error_code: 101
 --- no_error_log
 [error]
