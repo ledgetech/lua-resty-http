@@ -62,3 +62,42 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 3: parse_uri returns port 443 for wss URIs
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local parsed = httpc:parse_uri("wss://www.google.com/ws")
+            ngx.say(parsed[3])
+        ';
+    }
+--- request
+GET /a
+--- response_body
+443
+--- no_error_log
+[error]
+[warn]
+
+
+=== TEST 4: parse_uri returns port 80 for ws URIs
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local parsed = httpc:parse_uri("ws://www.google.com/ws")
+            ngx.say(parsed[3])
+        ';
+    }
+--- request
+GET /a
+--- response_body
+80
+--- no_error_log
+[error]
+[warn]

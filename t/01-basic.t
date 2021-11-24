@@ -389,3 +389,44 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 15: WebSocket
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            local ok, err = httpc:connect{
+                scheme = "ws",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            }
+
+            local res, err = httpc:request{
+                path = "/ws"
+            }
+
+            ngx.status = res.status
+            ngx.say(res.reason)
+            ngx.print(res:read_body())
+
+            httpc:close()
+        ';
+    }
+    location = /ws {
+        content_by_lua '
+            ngx.status = 101
+            ngx.header["Upgrade"] = "websocket"
+            ngx.header["Connection"] = "Upgrade"
+        ';
+    }
+--- request
+GET /a
+--- response_body
+Switching Protocols
+OK
+--- error_code: 101
+--- no_error_log
+[error]
+[warn]
