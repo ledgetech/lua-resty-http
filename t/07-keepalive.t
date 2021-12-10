@@ -601,3 +601,48 @@ response not fully read
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 12 pool_only_after_response is on. Test the connection is reused on non-body requests.
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port,
+                pool_only_after_response = true
+            })
+
+            local res, err = httpc:request{
+                method = "HEAD",
+                path = "/b"
+            }
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+1
+1
+--- no_error_log
+[error]
+[warn]

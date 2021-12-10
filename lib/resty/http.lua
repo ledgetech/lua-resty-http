@@ -855,6 +855,11 @@ function _M.read_response(self, params)
 
             body_reader, err = _body_reader(body_reader_keepalive_ready_callback, sock, length)
         end
+    else
+        if not has_trailer then
+            -- If there's no body and no trailer - it's ready for keep-alive
+            self.keepalive_ready = true
+        end
     end
 
     if has_trailer then
