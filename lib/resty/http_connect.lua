@@ -32,12 +32,14 @@ client:connect {
 
     -- mTLS options (experimental!)
     --
-    -- !!! IMPORTANT !!! These require `tcpsock:setclientcert`, which is
-    -- currently only available in the Kong patch set:
-    -- https://github.com/Kong/kong-build-tools
+    -- !!! IMPORTANT !!! These options require support for mTLS in cosockets,
+    -- which is currently only available in the following unmerged PRs.
+    --
+    -- * https://github.com/openresty/lua-nginx-module/pull/1602
+    -- * https://github.com/openresty/lua-resty-core/pull/278
     --
     -- The details of this feature may change. You have been warned!
-
+    --
     ssl_client_cert = nil,
     ssl_client_priv_key = nil,
 
