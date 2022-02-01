@@ -1,6 +1,8 @@
 local ngx_re_gmatch = ngx.re.gmatch
 local ngx_re_sub = ngx.re.sub
 local ngx_re_find = ngx.re.find
+local ngx_log = ngx.log
+local ngx_WARN = ngx.WARN
 
 --[[
 A connection function that incorporates:
@@ -28,6 +30,17 @@ client:connect {
     ssl_verify = true,      -- NOTE: defaults to true
     ctx = nil,              -- NOTE: not supported
 
+    -- mTLS options (experimental!)
+    --
+    -- !!! IMPORTANT !!! These require `tcpsock:setclientcert`, which is
+    -- currently only available in the Kong patch set:
+    -- https://github.com/Kong/kong-build-tools
+    --
+    -- The details of this feature may change. You have been warned!
+
+    ssl_client_cert = nil,
+    ssl_client_priv_key = nil,
+
     proxy_opts,             -- proxy opts, defaults to global proxy options
 }
 ]]
@@ -54,7 +67,8 @@ local function connect(self, options)
     end
 
     -- ssl settings
-    local ssl, ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req
+    local ssl, ssl_reused_session, ssl_server_name
+    local ssl_verify, ssl_send_status_req, ssl_client_cert, ssl_client_priv_key
     if request_scheme == "https" then
         ssl = true
         ssl_reused_session = options.ssl_reused_session
@@ -64,6 +78,8 @@ local function connect(self, options)
         if options.ssl_verify == false then
             ssl_verify = false
         end
+        ssl_client_cert = options.ssl_client_cert
+        ssl_client_priv_key = options.ssl_client_priv_key
     end
 
     -- proxy related settings
@@ -218,6 +234,18 @@ local function connect(self, options)
     local ssl_session
     -- Now do the ssl handshake
     if ssl and sock:getreusedtimes() == 0 then
+
+        -- Experimental mTLS support
+        if ssl_client_cert and ssl_client_priv_key then
+          if type(sock.setclientcert) ~= "function" then
+            ngx_log(ngx_WARN, "cannot use SSL client cert and key without mTLS support")
+
+          else
+            -- currently no return value
+            sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
+          end
+        end
+
         ssl_session, err = sock:sslhandshake(ssl_reused_session, ssl_server_name, ssl_verify, ssl_send_status_req)
         if not ssl_session then
             self:close()
