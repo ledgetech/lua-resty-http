@@ -57,7 +57,7 @@ __DATA__
                 host = TEST_SERVER_SOCK,
             })
 
-            assert(type(session) == "userdata", "expected session to be userdata")
+            assert(type(session) == "userdata" or type(session) == "cdata", "expected session to be userdata or cdata")
             assert(httpc:close())
         }
     }
@@ -113,7 +113,7 @@ GET /t
                 host = TEST_SERVER_SOCK,
             })
 
-            assert(type(session) == "userdata", "expected session to be userdata")
+            assert(type(session) == "userdata" or type(session) == "cdata", "expected session to be userdata or cdata")
 
             local httpc2 = assert(require("resty.http").new())
             local ok, err, session2 = assert(httpc2:connect {
@@ -122,7 +122,7 @@ GET /t
                 ssl_reused_session = session,
             })
 
-            assert(type(session2) == "userdata", "expected session2 to be userdata")
+            assert(type(session2) == "userdata" or type(session2) == "cdata", "expected session2 to be userdata or cdata")
 
             assert(httpc:close())
             assert(httpc2:close())
