@@ -42,7 +42,7 @@ server {
     server_name            example.com;
 
     location / {
-        return 200 "hello, \$ssl_client_s_dn";
+        echo -n "hello, \$ssl_client_s_dn";
     }
 }
 _EOC_
@@ -103,9 +103,59 @@ GET /t
 [warn]
 
 
-=== TEST 2: Connection succeeds with client cert and key. SKIP'd for CI until feature is merged.
+=== TEST 2: Connection fails during handshake with not priv_key
 --- http_config eval: $::mtls_http_config
 --- SKIP
+--- config eval
+"
+lua_ssl_trusted_certificate $::HtmlDir/test.crt;
+location /t {
+    content_by_lua_block {
+        local f = assert(io.open('$::HtmlDir/mtls_client.crt'))
+        local cert_data = f:read('*a')
+        f:close()
+
+        local ssl = require('ngx.ssl')
+
+        local cert = assert(ssl.parse_pem_cert(cert_data))
+
+        local httpc = assert(require('resty.http').new())
+
+        local ok, err = httpc:connect {
+          scheme = 'https',
+          host = 'unix:$::HtmlDir/mtls.sock',
+          ssl_client_cert = cert,
+          ssl_client_priv_key = 'foo',
+        }
+
+        if ok and not err then
+          local res, err = assert(httpc:request {
+            method = 'GET',
+            path = '/',
+            headers = {
+              ['Host'] = 'example.com',
+            },
+          })
+
+          ngx.say(res:read_body())
+        end
+
+        httpc:close()
+    }
+}
+"
+--- user_files eval: $::mtls_user_files
+--- request
+GET /t
+--- error_code: 200
+--- error_log
+could not set client certificate: bad client pkey type
+--- response_body_unlike: hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
+
+
+=== TEST 3: Connection succeeds with client cert and key. SKIP'd for CI until feature is merged.
+--- SKIP
+--- http_config eval: $::mtls_http_config
 --- config eval
 "
 lua_ssl_trusted_certificate $::HtmlDir/test.crt;
@@ -158,3 +208,4 @@ GET /t
 [warn]
 --- response_body
 hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
+

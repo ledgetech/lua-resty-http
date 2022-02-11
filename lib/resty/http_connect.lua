@@ -190,7 +190,9 @@ local function connect(self, options)
         -- proxy based connection
         ok, err = sock:connect(proxy_host, proxy_port, tcp_opts)
         if not ok then
-            return nil, "failed to connect to: " .. (proxy_host or "") .. ":" .. (proxy_port or "")
+            return nil, "failed to connect to: " .. (proxy_host or "") ..
+                        ":" .. (proxy_port or "") ..
+                        ": ", err
         end
 
         if ssl and sock:getreusedtimes() == 0 then
@@ -244,7 +246,10 @@ local function connect(self, options)
 
           else
             -- currently no return value
-            sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
+            ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
+            if not ok then
+              ngx_log(ngx_WARN, "could not set client certificate: ", err)
+            end
           end
         end
 
