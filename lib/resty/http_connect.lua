@@ -245,7 +245,6 @@ local function connect(self, options)
             ngx_log(ngx_WARN, "cannot use SSL client cert and key without mTLS support")
 
           else
-            -- currently no return value
             ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
             if not ok then
               ngx_log(ngx_WARN, "could not set client certificate: ", err)
