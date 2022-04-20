@@ -135,7 +135,9 @@ function _M.new(_)
         return nil, err
     end
     return setmetatable({
-        sock = sock, keepalive_supported = true, reader_state = { keepalive_ready = false, mark_keepalive_ready_on_body_read = true }
+        sock = sock,
+        keepalive_supported = true,
+        reader_state = { keepalive_ready = false, mark_keepalive_ready_on_body_read = true }
     }, mt)
 end
 
@@ -826,9 +828,7 @@ function _M.read_response(self, params)
     local body_reader = _no_body_reader
     local trailer_reader
     local has_body = false
-    local has_trailer = false
-
-    has_trailer = (res_headers["Trailer"] ~= nil)
+    local has_trailer = (res_headers["Trailer"] ~= nil)
     self.reader_state.mark_keepalive_ready_on_body_read = not has_trailer
 
     -- Receive the body_reader
