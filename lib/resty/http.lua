@@ -135,7 +135,7 @@ function _M.new(_)
         return nil, err
     end
     return setmetatable({
-        sock = sock, keepalive_supported = true, keepalive_ready = false, pool_only_after_response = false
+        sock = sock, keepalive_supported = true, keepalive_ready = false
     }, mt)
 end
 
@@ -211,7 +211,7 @@ function _M.set_keepalive(self, ...)
     end
 
     if self.keepalive_supported == true then
-        if self.pool_only_after_response and not self.keepalive_ready then
+        if not self.keepalive_ready then
             return nil, "response not fully read"
         end
 

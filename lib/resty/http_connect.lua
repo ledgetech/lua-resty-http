@@ -22,7 +22,6 @@ client:connect {
     pool = nil,                       -- connection pool name, leave blank! this function knows best!
     pool_size = nil,                  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
     backlog = nil,
-    pool_only_after_response = false, -- set_keepalive() verifies http response fully read before pooling
 
     -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
     ssl_reused_session = nil
@@ -61,7 +60,6 @@ local function connect(self, options)
 
     local poolname = options.pool
     local pool_size = options.pool_size
-    local pool_only_after_response = options.pool_only_after_response
     local backlog = options.backlog
 
     if request_scheme and not request_port then
@@ -270,7 +268,6 @@ local function connect(self, options)
     -- set only for http, https has already been handled
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
     self.path_prefix = path_prefix
-    self.pool_only_after_response = pool_only_after_response
 
     return true, nil, ssl_session
 end
