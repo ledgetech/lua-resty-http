@@ -436,13 +436,13 @@ _M.transfer_encoding_is_chunked = transfer_encoding_is_chunked
 
 
 local function _reader_keepalive_ready_mark(http_client)
-    return co_wrap(function()
+    return function()
         http_client.keepalive_ready = true
-    end)
+    end
 end
 
 local function _reader_keepalive_ready_no_op()
-    return co_wrap(function() end)
+    return function() end
 end
 
 
@@ -830,13 +830,15 @@ function _M.read_response(self, params)
     local trailer_reader
     local has_body = false
     local has_trailer = false
-    -- If there are no trailers - fully reading response body means socket is ready to be pooled
-    local body_reader_keepalive_ready_callback = _reader_keepalive_ready_mark(self)
+    local body_reader_keepalive_ready_callback
 
     if res_headers["Trailer"] then
         has_trailer = true
         -- If there are trailers - fully reading response body doesn't mean socket is ready to be pooled
         body_reader_keepalive_ready_callback = _reader_keepalive_ready_no_op()
+    else
+        -- If there are no trailers - fully reading response body means socket is ready to be pooled
+        body_reader_keepalive_ready_callback = _reader_keepalive_ready_mark(self)
     end
 
     -- Receive the body_reader
