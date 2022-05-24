@@ -950,6 +950,9 @@ function _M.request_uri(self, uri, params)
         end
 
     else
+        -- drain trailers if needed
+        res:read_trailers()
+
         local ok, err = self:set_keepalive(params.keepalive_timeout, params.keepalive_pool)
         if not ok then
             ngx_log(ngx_ERR, err)
