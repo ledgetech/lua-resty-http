@@ -252,6 +252,8 @@ When the request is successful, `res` will contain the following fields:
 * `read_body`: A method to read the entire body into a string.
 * `read_trailers`: A method to merge any trailers underneath the headers, after reading the body.
 
+If the response has a body, then before the same connection can be used for another request, you must read the body using `read_body` or `body_reader`.
+
 ## request\_uri
 
 `syntax: res, err = httpc:request_uri(uri, params)`
