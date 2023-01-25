@@ -605,14 +605,25 @@ local function _read_trailers(res)
 end
 
 
-local function _send_body(sock, body)
+local function _send_body(sock, body, is_body_function_chunked)
     if type(body) == "function" then
+        local ok, err
+        local append = ""
+        if is_body_function_chunked then
+            append = "\r\n"
+        end
         repeat
             local chunk, err, partial = body()
 
             if chunk then
-                local ok, err = sock:send(chunk)
+                if is_body_function_chunked then
+                    ok, err = sock:send(string.format("%x", #chunk) .. append)
+                    if not ok then
+                        return nil, err
+                    end
+                end
 
+                ok, err = sock:send(chunk .. append)
                 if not ok then
                     return nil, err
                 end
@@ -621,6 +632,11 @@ local function _send_body(sock, body)
             end
 
         until chunk == nil
+
+        if is_body_function_chunked then
+            sock:send("0" .. append)
+            sock:send(append)
+        end
     elseif body ~= nil then
         local bytes, err = sock:send(body)
 
@@ -644,7 +660,7 @@ local function _handle_continue(sock, body)
         if not ok then
             return nil, nil, err
         end
-        _send_body(sock, body)
+        _send_body(sock, body, false)
     end
     return status, version, err
 end
@@ -664,6 +680,8 @@ function _M.send_request(self, params)
     for k, v in pairs(params_headers) do
         headers[k] = v
     end
+
+    local is_body_function_chunked = params.is_body_function_chunked == true
 
     if not headers["Proxy-Authorization"] then
         -- TODO: next major, change this to always override the provided
@@ -746,7 +764,7 @@ function _M.send_request(self, params)
     -- Send the request body, unless we expect: continue, in which case
     -- we handle this as part of reading the response.
     if headers["Expect"] ~= "100-continue" then
-        local ok, err, partial = _send_body(sock, body)
+        local ok, err, partial = _send_body(sock, body, is_body_function_chunked)
         if not ok then
             return nil, err, partial
         end
