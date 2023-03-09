@@ -635,18 +635,23 @@ end
 local function _handle_continue(sock, body)
     local status, version, reason, err = _receive_status(sock) --luacheck: no unused
     if not status then
-        return nil, nil, err
+        return nil, nil, nil, err
     end
 
     -- Only send body if we receive a 100 Continue
     if status == 100 then
-        local ok, err = sock:receive("*l") -- Read carriage return
-        if not ok then
-            return nil, nil, err
+        -- Read headers
+        local headers, err = _receive_headers(sock)
+        if not headers then
+            return nil, nil, nil, err
         end
-        _send_body(sock, body)
+
+        local ok, err, partial = _send_body(sock, body)
+        if not ok then
+            return nil, nil, nil, err
+        end
     end
-    return status, version, err
+    return status, version, reason, err
 end
 
 
@@ -764,11 +769,11 @@ function _M.read_response(self, params)
     -- If we expect: continue, we need to handle this, sending the body if allowed.
     -- If we don't get 100 back, then status is the actual status.
     if params.headers["Expect"] == "100-continue" then
-        local _status, _version, _err = _handle_continue(sock, params.body)
+        local _status, _version, _reason, _err = _handle_continue(sock, params.body)
         if not _status then
             return nil, _err
         elseif _status ~= 100 then
-            status, version, err = _status, _version, _err -- luacheck: no unused
+            status, version, reason, err = _status, _version, _reason, _err -- luacheck: no unused
         end
     end
 
