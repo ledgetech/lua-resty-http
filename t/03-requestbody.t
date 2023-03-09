@@ -164,7 +164,6 @@ c: 3
 [error]
 [warn]
 
-
 === TEST 4: Return non-100 status to user
 --- http_config eval: $::HttpConfig
 --- config
@@ -248,7 +247,6 @@ Expectation Failed
             end
 
             -- with additional header
-            ngx.log(ngx.NOTICE, "before send 100")
             local ok, err = sock:send("HTTP/1.1 100 Continue\r\nConnection: keep-alive\r\n\r\n")
             if not ok then
                 ngx.log(ngx.ERR, "failed to send 100 response: ", err)
