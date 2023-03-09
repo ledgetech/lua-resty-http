@@ -646,7 +646,7 @@ local function _handle_continue(sock, body)
             return nil, nil, nil, err
         end
 
-        local ok, err, partial = _send_body(sock, body)
+        local ok, err = _send_body(sock, body)
         if not ok then
             return nil, nil, nil, err
         end
