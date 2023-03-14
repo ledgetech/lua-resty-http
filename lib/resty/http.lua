@@ -315,7 +315,6 @@ local function _format_request(self, params)
     if type(query) == "table" then
         query = ngx_encode_args(query)
     end
-    
     if query ~= "" and str_sub(query, 1, 1) ~= "?" then
         query = "?" .. query
     end
