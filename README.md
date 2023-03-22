@@ -19,6 +19,7 @@ Production ready.
 * Request pipelining
 * Trailers
 * HTTP proxy connections
+* mTLS (requires `ngx_lua_http_module` >= v0.10.23)
 
 
 ## API
@@ -176,6 +177,8 @@ The options table has the following fields:
 * `ssl_verify`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake), except that it defaults to `true`.
 * `ssl_server_name`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 * `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
+* `ssl_client_cert`: will be passed to `tcpsock:setclientcert`. Requires `ngx_lua_http_module` >= v0.10.23.
+* `ssl_client_priv_key`: as above.
 
 ## set\_timeout
 

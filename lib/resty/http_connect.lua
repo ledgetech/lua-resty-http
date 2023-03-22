@@ -30,16 +30,8 @@ client:connect {
     ssl_verify = true,      -- NOTE: defaults to true
     ctx = nil,              -- NOTE: not supported
 
-    -- mTLS options (experimental!)
-    --
-    -- !!! IMPORTANT !!! These options require support for mTLS in cosockets,
-    -- which is currently only available in the following unmerged PRs.
-    --
-    -- * https://github.com/openresty/lua-nginx-module/pull/1602
-    -- * https://github.com/openresty/lua-resty-core/pull/278
-    --
-    -- The details of this feature may change. You have been warned!
-    --
+    -- mTLS options: These require support for mTLS in cosockets, which first
+    -- appeared in `ngx_http_lua_module` v0.10.23.
     ssl_client_cert = nil,
     ssl_client_priv_key = nil,
 
