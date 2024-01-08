@@ -209,3 +209,101 @@ GET /t
 --- response_body
 hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
 
+
+=== TEST 4: users with different client certs should not share the same pool.
+--- SKIP
+--- http_config eval: $::mtls_http_config
+--- config eval
+"
+lua_ssl_trusted_certificate $::HtmlDir/test.crt;
+
+location /t {
+    content_by_lua_block {
+        local f = assert(io.open('$::HtmlDir/mtls_client.crt'))
+        local cert_data = f:read('*a')
+        f:close()
+
+        f = assert(io.open('$::HtmlDir/mtls_client.key'))
+        local key_data = f:read('*a')
+        f:close()
+
+        local ssl = require('ngx.ssl')
+
+        local cert = assert(ssl.parse_pem_cert(cert_data))
+        local key = assert(ssl.parse_pem_priv_key(key_data))
+
+        f = assert(io.open('$::HtmlDir/test.crt'))
+        local invalid_cert_data = f:read('*a')
+        f:close()
+
+        f = assert(io.open('$::HtmlDir/test.key'))
+        local invalid_key_data = f:read('*a')
+        f:close()
+
+        local invalid_cert = assert(ssl.parse_pem_cert(invalid_cert_data))
+        local invalid_key = assert(ssl.parse_pem_priv_key(invalid_key_data))
+
+        local httpc = assert(require('resty.http').new())
+
+        local ok, err = httpc:connect {
+          scheme = 'https',
+          host = 'unix:$::HtmlDir/mtls.sock',
+          ssl_client_cert = cert,
+          ssl_client_priv_key = key,
+        }
+
+        if ok and not err then
+          local res, err = assert(httpc:request {
+            method = 'GET',
+            path = '/',
+            headers = {
+              ['Host'] = 'example.com',
+            },
+          })
+
+          ngx.say(res:read_body())
+        end
+
+        httpc:set_keepalive()
+
+        local httpc = assert(require('resty.http').new())
+
+        local ok, err = httpc:connect {
+          scheme = 'https',
+          host = 'unix:$::HtmlDir/mtls.sock',
+          ssl_client_cert = invalid_cert,
+          ssl_client_priv_key = invalid_key,
+        }
+
+        ngx.say(httpc:get_reused_times())
+        ngx.say(ok)
+        ngx.say(err)
+
+        if ok and not err then
+          local res, err = assert(httpc:request {
+            method = 'GET',
+            path = '/',
+            headers = {
+              ['Host'] = 'example.com',
+            },
+          })
+
+          ngx.say(res.status)   -- expect 400
+        end
+
+        httpc:close()
+    }
+}
+"
+--- user_files eval: $::mtls_user_files
+--- request
+GET /t
+--- no_error_log
+[error]
+[warn]
+--- response_body
+hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
+0
+true
+nil
+400
