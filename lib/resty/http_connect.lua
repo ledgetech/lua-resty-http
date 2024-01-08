@@ -167,20 +167,30 @@ local function connect(self, options)
     local cert_hash
     if ssl and ssl_client_cert and ssl_client_priv_key then
         local status, res = xpcall(function()
+            local chain = require("resty.openssl.chain")
             local x509 = require("resty.openssl.x509")
             local pkey = require("resty.openssl.pkey")
-            return { x509, pkey }
+            return { chain, x509, pkey }
         end, debug.traceback)
 
         if status then
-            local x509 = res[1]
-            local pkey = res[2]
-            local cert, err = x509.new(ssl_client_cert)
+            local chain = res[1]
+            local x509 = res[2]
+            local pkey = res[3]
+
+            local cert_chain, err = chain.dup(ssl_client_cert)
+            if not cert_chain then
+              return nil, err
+            end
+
+            if #cert_chain < 1 then
+              return nil, "no cert in the chain"
+            end
+
+            local cert, err = x509.dup(cert_chain[1].ctx)
             if not cert then
               return nil, err
             end
-            -- should not free the cdata passed in
-            ffi_gc(cert.ctx, nil)
 
             local key, err = pkey.new(ssl_client_priv_key)
             if not key then
@@ -204,8 +214,8 @@ local function connect(self, options)
             end
 
         else
-            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\.(x509|pkey)' not found") then
-                ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS.")
+            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\.(chain|x509|pkey)' not found") then
+                ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS." .. res)
 
             else
                 return nil, "failed to load module 'resty.openssl.*':\n" .. res
