@@ -1,8 +1,12 @@
+local ffi = require "ffi"
 local ngx_re_gmatch = ngx.re.gmatch
 local ngx_re_sub = ngx.re.sub
 local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
 local ngx_WARN = ngx.WARN
+local to_hex = require("resty.string").to_hex
+local ffi_gc = ffi.gc
+local string_format = string.format
 
 --[[
 A connection function that incorporates:
@@ -160,16 +164,51 @@ local function connect(self, options)
         proxy_port = proxy_uri_t[3]
     end
 
+    local cert_hash
+    if ssl and ssl_client_cert and ssl_client_priv_key then
+        local status, res = xpcall(function()
+            return require("resty.openssl.x509")
+        end, debug.traceback)
+
+        if status then
+            local x509 = res
+            local cert, err = x509.new(ssl_client_cert)
+            if not cert then
+              return nil, err
+            end
+            -- should not free the cdata passed in
+            ffi_gc(cert.ctx, nil)
+
+            cert_hash, err = cert:digest("sha256")
+            if cert_hash then
+              cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
+
+            else
+              return nil, err
+            end
+
+        else
+            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\.x509)' not found") then
+                ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS.")
+
+            else
+                return nil, "failed to load module 'resty.openssl.x509':\n" .. res
+            end
+        end
+    end
+
     -- construct a poolname unique within proxy and ssl info
     if not poolname then
-        poolname = (request_scheme or "")
-                   .. ":" .. request_host
-                   .. ":" .. tostring(request_port)
-                   .. ":" .. tostring(ssl)
-                   .. ":" .. (ssl_server_name or "")
-                   .. ":" .. tostring(ssl_verify)
-                   .. ":" .. (proxy_uri or "")
-                   .. ":" .. (request_scheme == "https" and proxy_authorization or "")
+        poolname = string_format("%s:%s:%s:%s:%s:%s:%s:%s:%s",
+                    request_scheme or "",
+                    request_host,
+                    tostring(request_port),
+                    tostring(ssl),
+                    ssl_server_name or "",
+                    tostring(ssl_verify),
+                    proxy_uri or "",
+                    request_scheme == "https" and proxy_authorization or "",
+                    cert_hash or "")
         -- in the above we only add the 'proxy_authorization' as part of the poolname
         -- when the request is https. Because in that case the CONNECT request (which
         -- carries the authorization header) is part of the connect procedure, whereas
