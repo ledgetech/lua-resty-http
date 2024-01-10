@@ -179,6 +179,13 @@ local function connect(self, options)
             local x509 = res[2]
             local pkey = res[3]
 
+            if type(ssl_client_cert) ~= "cdata" then
+              return nil, "bad ssl_client_cert: cdata expected, got " .. type(ssl_client_cert)
+            end
+
+            if type(ssl_client_priv_key) ~= "cdata" then
+              return nil, "bad ssl_client_priv_key: cdata expected, got " .. type(ssl_client_priv_key)
+            end
 
             -- convert from `void*` to `OPENSSL_STACK*`
             local cert_chain, err = chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))

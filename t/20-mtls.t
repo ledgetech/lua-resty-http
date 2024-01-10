@@ -148,7 +148,7 @@ location /t {
 GET /t
 --- error_code: 200
 --- error_log
-could not set client certificate: bad client pkey type
+bad ssl_client_priv_key: cdata expected, got string
 --- response_body_unlike: hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
 --- skip_nginx
 4: < 1.21.4
