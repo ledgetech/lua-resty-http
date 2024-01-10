@@ -105,7 +105,6 @@ GET /t
 
 === TEST 2: Connection fails during handshake with not priv_key
 --- http_config eval: $::mtls_http_config
---- SKIP
 --- config eval
 "
 lua_ssl_trusted_certificate $::HtmlDir/test.crt;
@@ -151,10 +150,10 @@ GET /t
 --- error_log
 could not set client certificate: bad client pkey type
 --- response_body_unlike: hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
-
+--- skip_nginx
+4: < 1.21.4
 
 === TEST 3: Connection succeeds with client cert and key. SKIP'd for CI until feature is merged.
---- SKIP
 --- http_config eval: $::mtls_http_config
 --- config eval
 "
@@ -208,10 +207,10 @@ GET /t
 [warn]
 --- response_body
 hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
-
+--- skip_nginx
+4: < 1.21.4
 
 === TEST 4: users with different client certs should not share the same pool.
---- SKIP
 --- http_config eval: $::mtls_http_config
 --- config eval
 "
@@ -307,3 +306,5 @@ hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
 true
 nil
 400
+--- skip_nginx
+4: < 1.21.4
