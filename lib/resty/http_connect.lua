@@ -167,71 +167,91 @@ local function connect(self, options)
 
     local cert_hash
     if ssl and ssl_client_cert and ssl_client_priv_key then
-        local status, res = xpcall(function()
-            local chain = require("resty.openssl.x509.chain")
-            local x509 = require("resty.openssl.x509")
-            local pkey = require("resty.openssl.pkey")
-            return { chain, x509, pkey }
-        end, debug.traceback)
+        -- fallback to non-mTLS when any error
+        repeat
+            local cert_type = type(ssl_client_cert)
+            local key_type = type(ssl_client_priv_key)
 
-        if status then
-            local chain = res[1]
-            local x509 = res[2]
-            local pkey = res[3]
-
-            if type(ssl_client_cert) ~= "cdata" then
-              return nil, "bad ssl_client_cert: cdata expected, got " .. type(ssl_client_cert)
+            if cert_type ~= "cdata" then
+                ngx_log(ngx_WARN, "bad ssl_client_cert: cdata expected, got " .. cert_type)
+                break
             end
 
-            if type(ssl_client_priv_key) ~= "cdata" then
-              return nil, "bad ssl_client_priv_key: cdata expected, got " .. type(ssl_client_priv_key)
+            if key_type ~= "cdata" then
+                ngx_log(ngx_WARN, "bad ssl_client_priv_key: cdata expected, got " .. key_type)
+                break
             end
 
-            -- convert from `void*` to `OPENSSL_STACK*`
-            local cert_chain, err = chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
-            if not cert_chain then
-              return nil, err
-            end
+            local status, res = xpcall(function()
+                local chain = require("resty.openssl.x509.chain")
+                local x509 = require("resty.openssl.x509")
+                local pkey = require("resty.openssl.pkey")
+                return { chain, x509, pkey }
+            end, debug.traceback)
 
-            if #cert_chain < 1 then
-              return nil, "no cert in the chain"
-            end
+            if status then
+                local chain = res[1]
+                local x509 = res[2]
+                local pkey = res[3]
 
-            local cert, err = x509.dup(cert_chain[1].ctx)
-            if not cert then
-              return nil, err
-            end
+                -- convert from `void*` to `OPENSSL_STACK*`
+                local cert_chain, err = chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
+                if not cert_chain then
+                    ngx_log(ngx_WARN, "failed to dup the ssl_client_cert, falling back to non-mTLS: " .. err)
+                    break
+                end
 
-            -- convert from `void*` to `EVP_PKEY*`
-            local key, err = pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
-            if not key then
-              return nil, err
-            end
-            -- should not free the cdata passed in
-            ffi_gc(key.ctx, nil)
+                if #cert_chain < 1 then
+                    ngx_log(ngx_WARN, "no cert in ssl_client_cert, falling back to non-mTLS: " .. err)
+                    break
+                end
 
-            -- check the private key in order to make sure the caller is indeed the holder of the cert
-            ok, err = cert:check_private_key(key)
-            if not ok then
-              return nil, "failed to match the private key with the certificate: " .. err
-            end
+                local cert, err = x509.dup(cert_chain[1].ctx)
+                if not cert then
+                    ngx_log(ngx_WARN, "failed to dup the x509, falling back to non-mTLS: " .. err)
+                    break
+                end
 
-            cert_hash, err = cert:digest("sha256")
-            if cert_hash then
-              cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
+                -- convert from `void*` to `EVP_PKEY*`
+                local key, err = pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
+                if not key then
+                    ngx_log(ngx_WARN, "failed to new the pkey, falling back to non-mTLS: " .. err)
+                    break
+                end
+                -- should not free the cdata passed in
+                ffi_gc(key.ctx, nil)
+
+                -- check the private key in order to make sure the caller is indeed the holder of the cert
+                ok, err = cert:check_private_key(key)
+                if not ok then
+                    ngx_log(ngx_WARN, "the private key doesn't match the cert, falling back to non-mTLS: " .. err)
+                    break
+                end
+
+                cert_hash, err = cert:digest("sha256")
+                if cert_hash then
+                    cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
+
+                else
+                    ngx_log(ngx_WARN, "failed to calculate the digest of the cert, falling back to non-mTLS: " .. err)
+                    break
+                end
 
             else
-              return nil, err
-            end
+                if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\..+' not found") then
+                    ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS:\n "
+                                      .. res)
 
-        else
-            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\..+' not found") then
-                ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS." .. res)
-
-            else
-                return nil, "failed to load module 'resty.openssl.*':\n" .. res
+                else
+                    ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, falling back to non-mTLS:\n" .. res)
+                end
             end
-        end
+        until true
+    end
+
+    if not cert_hash then
+        ssl_client_cert = nil
+        ssl_client_priv_key = nil
     end
 
     -- construct a poolname unique within proxy and ssl info
