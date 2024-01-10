@@ -6,6 +6,7 @@ local ngx_log = ngx.log
 local ngx_WARN = ngx.WARN
 local to_hex = require("resty.string").to_hex
 local ffi_gc = ffi.gc
+local ffi_cast = ffi.cast
 local string_format = string.format
 
 --[[
@@ -167,7 +168,7 @@ local function connect(self, options)
     local cert_hash
     if ssl and ssl_client_cert and ssl_client_priv_key then
         local status, res = xpcall(function()
-            local chain = require("resty.openssl.chain")
+            local chain = require("resty.openssl.x509.chain")
             local x509 = require("resty.openssl.x509")
             local pkey = require("resty.openssl.pkey")
             return { chain, x509, pkey }
@@ -178,7 +179,9 @@ local function connect(self, options)
             local x509 = res[2]
             local pkey = res[3]
 
-            local cert_chain, err = chain.dup(ssl_client_cert)
+
+            -- convert from `void*` to `OPENSSL_STACK*`
+            local cert_chain, err = chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
             if not cert_chain then
               return nil, err
             end
@@ -192,7 +195,8 @@ local function connect(self, options)
               return nil, err
             end
 
-            local key, err = pkey.new(ssl_client_priv_key)
+            -- convert from `void*` to `EVP_PKEY*`
+            local key, err = pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
             if not key then
               return nil, err
             end
@@ -214,7 +218,7 @@ local function connect(self, options)
             end
 
         else
-            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\.(chain|x509|pkey)' not found") then
+            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\..+' not found") then
                 ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS." .. res)
 
             else
