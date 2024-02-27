@@ -139,7 +139,7 @@ location /t {
           ngx.say(res:read_body())
 
         else
-          ngx.say("failed to connect: " .. err or "")
+          ngx.say('failed to connect: ' .. (err or ''))
         end
 
         httpc:close()
@@ -157,6 +157,7 @@ GET /t
 failed to connect: bad ssl_client_priv_key: cdata expected, got string
 --- skip_nginx
 4: < 1.21.4
+
 
 === TEST 3: Connection succeeds with client cert and key.
 --- http_config eval: $::mtls_http_config
