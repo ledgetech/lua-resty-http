@@ -137,6 +137,9 @@ location /t {
           })
 
           ngx.say(res:read_body())
+
+        else
+          ngx.say("failed to connect: " .. err or "")
         end
 
         httpc:close()
@@ -147,13 +150,15 @@ location /t {
 --- request
 GET /t
 --- error_code: 200
---- error_log
-bad ssl_client_priv_key: cdata expected, got string
---- response_body_unlike: hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
+--- no_error_log
+[error]
+[warn]
+--- response_body
+failed to connect: bad ssl_client_priv_key: cdata expected, got string
 --- skip_nginx
 4: < 1.21.4
 
-=== TEST 3: Connection succeeds with client cert and key. SKIP'd for CI until feature is merged.
+=== TEST 3: Connection succeeds with client cert and key.
 --- http_config eval: $::mtls_http_config
 --- config eval
 "
