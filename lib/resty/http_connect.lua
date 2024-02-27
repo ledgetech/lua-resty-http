@@ -11,11 +11,15 @@ local ffi_cast = ffi.cast
 local string_format = string.format
 local type = type
 
-local function require_openssl_libs()
-    local chain = require("resty.openssl.x509.chain")
-    local x509 = require("resty.openssl.x509")
-    local pkey = require("resty.openssl.pkey")
-    return { chain, x509, pkey }
+local lib_chain, lib_x509, lib_pkey
+local openssl_available, res = xpcall(function()
+    lib_chain = require("resty.openssl.x509.chain")
+    lib_x509 = require("resty.openssl.x509")
+    lib_pkey = require("resty.openssl.pkey")
+end, debug.traceback)
+
+if not openssl_available then
+  ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, mTLS isn't supported without lua-resty-openssl :\n", res)
 end
 
 --[[
@@ -175,7 +179,7 @@ local function connect(self, options)
     end
 
     local cert_hash
-    -- fallback to non-mTLS when any error
+    -- fallback to non-mTLS if it's not an error due to the caller
     repeat
         if not ssl or not ssl_client_cert or not ssl_client_priv_key then
             break
@@ -185,53 +189,37 @@ local function connect(self, options)
         local key_type = type(ssl_client_priv_key)
 
         if cert_type ~= "cdata" then
-            ngx_log(ngx_WARN, "bad ssl_client_cert: cdata expected, got ", cert_type)
-            break
+            return nil, string_format("bad ssl_client_cert: cdata expected, got %s", cert_type)
         end
 
         if key_type ~= "cdata" then
-            ngx_log(ngx_WARN, "bad ssl_client_priv_key: cdata expected, got ", key_type)
-            break
+            return nil, string_format("bad ssl_client_priv_key: cdata expected, got %s", key_type)
         end
 
-        local status, res = xpcall(require_openssl_libs, debug.traceback)
-
-        if not status then
-            if type(res) == "string" and ngx_re_find(res, "module 'resty\\.openssl\\..+' not found") then
-                ngx_log(ngx_WARN, "can't use mTLS without module `lua-resty-openssl`, falling back to non-mTLS:\n "
-                                , res)
-
-            else
-                ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, falling back to non-mTLS:\n", res)
-            end
-
+        if not openssl_available then
+            ngx_log(ngx_WARN, "module `resty.openssl.*` not available, falling back to non-mTLS:\n")
             break
         end
-
-        local chain = res[1]
-        local x509 = res[2]
-        local pkey = res[3]
 
         -- convert from `void*` to `OPENSSL_STACK*`
-        local cert_chain, err = chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
+        local cert_chain, err = lib_chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
         if not cert_chain then
             ngx_log(ngx_WARN, "failed to dup the ssl_client_cert, falling back to non-mTLS: ", err)
             break
         end
 
         if #cert_chain < 1 then
-            ngx_log(ngx_WARN, "no cert in ssl_client_cert, falling back to non-mTLS: ", err)
-            break
+            return nil, "no cert in ssl_client_cert"
         end
 
-        local cert, err = x509.dup(cert_chain[1].ctx)
+        local cert, err = lib_x509.dup(cert_chain[1].ctx)
         if not cert then
             ngx_log(ngx_WARN, "failed to dup the x509, falling back to non-mTLS: ", err)
             break
         end
 
         -- convert from `void*` to `EVP_PKEY*`
-        local key, err = pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
+        local key, err = lib_pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
         if not key then
             ngx_log(ngx_WARN, "failed to new the pkey, falling back to non-mTLS: ", err)
             break
@@ -242,8 +230,7 @@ local function connect(self, options)
         -- check the private key in order to make sure the caller is indeed the holder of the cert
         ok, err = cert:check_private_key(key)
         if not ok then
-            ngx_log(ngx_WARN, "the private key doesn't match the cert, falling back to non-mTLS: ", err)
-            break
+            return nil, string_format("the private key doesn't match the cert: %s", err)
         end
 
         cert_hash, err = cert:digest("sha256")
