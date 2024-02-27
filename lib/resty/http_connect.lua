@@ -179,12 +179,7 @@ local function connect(self, options)
     end
 
     local cert_hash
-    -- fallback to non-mTLS if it's not an error due to the caller
-    repeat
-        if not ssl or not ssl_client_cert or not ssl_client_priv_key then
-            break
-        end
-
+    if ssl and ssl_client_cert and ssl_client_priv_key then
         local cert_type = type(ssl_client_cert)
         local key_type = type(ssl_client_priv_key)
 
@@ -197,15 +192,13 @@ local function connect(self, options)
         end
 
         if not openssl_available then
-            ngx_log(ngx_WARN, "module `resty.openssl.*` not available, falling back to non-mTLS:\n")
-            break
+            return nil, "module `resty.openssl.*` not available, mTLS isn't supported with lua-resty-openssl"
         end
 
         -- convert from `void*` to `OPENSSL_STACK*`
         local cert_chain, err = lib_chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
         if not cert_chain then
-            ngx_log(ngx_WARN, "failed to dup the ssl_client_cert, falling back to non-mTLS: ", err)
-            break
+            return nil, string_format("failed to dup the ssl_client_cert: %s", err)
         end
 
         if #cert_chain < 1 then
@@ -214,15 +207,13 @@ local function connect(self, options)
 
         local cert, err = lib_x509.dup(cert_chain[1].ctx)
         if not cert then
-            ngx_log(ngx_WARN, "failed to dup the x509, falling back to non-mTLS: ", err)
-            break
+            return nil, string_format("failed to dup the x509: %s", err)
         end
 
         -- convert from `void*` to `EVP_PKEY*`
         local key, err = lib_pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
         if not key then
-            ngx_log(ngx_WARN, "failed to new the pkey, falling back to non-mTLS: ", err)
-            break
+            return nil, string_format("failed to new the pkey: %s": err)
         end
         -- should not free the cdata passed in
         ffi_gc(key.ctx, nil)
@@ -235,17 +226,10 @@ local function connect(self, options)
 
         cert_hash, err = cert:digest("sha256")
         if not cert_hash then
-            ngx_log(ngx_WARN, "failed to calculate the digest of the cert, falling back to non-mTLS: ", err)
-            break
+            return nil, string_format("failed to calculate the digest of the cert: %s", err)
         end
 
         cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
-
-    until true
-
-    if not cert_hash then
-        ssl_client_cert = nil
-        ssl_client_priv_key = nil
     end
 
     -- construct a poolname unique within proxy and ssl info
@@ -326,13 +310,13 @@ local function connect(self, options)
         -- Experimental mTLS support
         if ssl_client_cert and ssl_client_priv_key then
           if type(sock.setclientcert) ~= "function" then
-            ngx_log(ngx_WARN, "cannot use SSL client cert and key without mTLS support")
+              return nil, "cannot use SSL client cert and key without mTLS support"
 
           else
-            ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
-            if not ok then
-              ngx_log(ngx_WARN, "could not set client certificate: ", err)
-            end
+              ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
+              if not ok then
+                  return nil, string_format("could not set client certificate: %s", err)
+              end
           end
         end
 
