@@ -244,13 +244,12 @@ local function connect(self, options)
             end
 
             cert_hash, err = cert:digest("sha256")
-            if cert_hash then
-                cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
-
-            else
+            if not cert_hash then
                 ngx_log(ngx_WARN, "failed to calculate the digest of the cert, falling back to non-mTLS: ", err)
                 break
             end
+
+            cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
 
         until true
     end
@@ -265,10 +264,10 @@ local function connect(self, options)
         poolname = string_format("%s:%s:%s:%s:%s:%s:%s:%s:%s",
                     request_scheme or "",
                     request_host,
-                    tostring(request_port),
-                    tostring(ssl),
+                    request_port,
+                    ssl,
                     ssl_server_name or "",
-                    tostring(ssl_verify),
+                    ssl_verify,
                     proxy_uri or "",
                     request_scheme == "https" and proxy_authorization or "",
                     cert_hash or "")
