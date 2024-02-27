@@ -19,7 +19,7 @@ local openssl_available, res = xpcall(function()
 end, debug.traceback)
 
 if not openssl_available then
-  ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, mTLS isn't supported without lua-resty-openssl :\n", res)
+  ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, mTLS isn't supported without lua-resty-openssl:\n", res)
 end
 
 --[[
