@@ -192,7 +192,7 @@ local function connect(self, options)
         end
 
         if not openssl_available then
-            return nil, "module `resty.openssl.*` not available, mTLS isn't supported with lua-resty-openssl"
+            return nil, "module `resty.openssl.*` not available, mTLS isn't supported without lua-resty-openssl"
         end
 
         -- convert from `void*` to `OPENSSL_STACK*`
