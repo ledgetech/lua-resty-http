@@ -213,7 +213,7 @@ local function connect(self, options)
         -- convert from `void*` to `EVP_PKEY*`
         local key, err = lib_pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
         if not key then
-            return nil, string_format("failed to new the pkey: %s": err)
+            return nil, string_format("failed to new the pkey: %s", err)
         end
         -- should not free the cdata passed in
         ffi_gc(key.ctx, nil)
