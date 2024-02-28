@@ -8,7 +8,6 @@ local ngx_DEBUG = ngx.DEBUG
 local to_hex = require("resty.string").to_hex
 local ffi_gc = ffi.gc
 local ffi_cast = ffi.cast
-local string_format = string.format
 local type = type
 
 local lib_chain, lib_x509, lib_pkey
@@ -19,7 +18,8 @@ local openssl_available, res = xpcall(function()
 end, debug.traceback)
 
 if not openssl_available then
-  ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, mTLS isn't supported without lua-resty-openssl:\n", res)
+  ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, \z
+                     mTLS isn't supported without lua-resty-openssl:\n", res)
 end
 
 --[[
@@ -184,11 +184,11 @@ local function connect(self, options)
         local key_type = type(ssl_client_priv_key)
 
         if cert_type ~= "cdata" then
-            return nil, string_format("bad ssl_client_cert: cdata expected, got %s", cert_type)
+            return nil, "bad ssl_client_cert: cdata expected, got " .. cert_type
         end
 
         if key_type ~= "cdata" then
-            return nil, string_format("bad ssl_client_priv_key: cdata expected, got %s", key_type)
+            return nil, "bad ssl_client_priv_key: cdata expected, got " .. key_type
         end
 
         if not openssl_available then
@@ -198,7 +198,7 @@ local function connect(self, options)
         -- convert from `void*` to `OPENSSL_STACK*`
         local cert_chain, err = lib_chain.dup(ffi_cast("OPENSSL_STACK*", ssl_client_cert))
         if not cert_chain then
-            return nil, string_format("failed to dup the ssl_client_cert: %s", err)
+            return nil, "failed to dup the ssl_client_cert: " .. err
         end
 
         if #cert_chain < 1 then
@@ -207,26 +207,27 @@ local function connect(self, options)
 
         local cert, err = lib_x509.dup(cert_chain[1].ctx)
         if not cert then
-            return nil, string_format("failed to dup the x509: %s", err)
+            return nil, "failed to dup the x509: " .. err
         end
 
         -- convert from `void*` to `EVP_PKEY*`
         local key, err = lib_pkey.new(ffi_cast("EVP_PKEY*", ssl_client_priv_key))
         if not key then
-            return nil, string_format("failed to new the pkey: %s", err)
+            return nil, "failed to new the pkey: " .. err
         end
+
         -- should not free the cdata passed in
         ffi_gc(key.ctx, nil)
 
         -- check the private key in order to make sure the caller is indeed the holder of the cert
         ok, err = cert:check_private_key(key)
         if not ok then
-            return nil, string_format("the private key doesn't match the cert: %s", err)
+            return nil, "the private key doesn't match the cert: " .. err
         end
 
         cert_hash, err = cert:digest("sha256")
         if not cert_hash then
-            return nil, string_format("failed to calculate the digest of the cert: %s", err)
+            return nil, "failed to calculate the digest of the cert: " .. err
         end
 
         cert_hash = to_hex(cert_hash) -- convert to hex so that it's printable
@@ -234,16 +235,14 @@ local function connect(self, options)
 
     -- construct a poolname unique within proxy and ssl info
     if not poolname then
-        poolname = string_format("%s:%s:%s:%s:%s:%s:%s:%s:%s",
-                    request_scheme or "",
-                    request_host,
-                    request_port,
-                    ssl,
-                    ssl_server_name or "",
-                    ssl_verify,
-                    proxy_uri or "",
-                    request_scheme == "https" and proxy_authorization or "",
-                    cert_hash or "")
+        poolname = (request_scheme or "")
+                   .. ":" .. request_host
+                   .. ":" .. tostring(request_port)
+                   .. ":" .. tostring(ssl)
+                   .. ":" .. (ssl_server_name or "")
+                   .. ":" .. tostring(ssl_verify)
+                   .. ":" .. (proxy_uri or "")
+                   .. ":" .. (request_scheme == "https" and proxy_authorization or "")
         -- in the above we only add the 'proxy_authorization' as part of the poolname
         -- when the request is https. Because in that case the CONNECT request (which
         -- carries the authorization header) is part of the connect procedure, whereas
@@ -315,7 +314,7 @@ local function connect(self, options)
           else
               ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
               if not ok then
-                  return nil, string_format("could not set client certificate: %s", err)
+                  return nil, "could not set client certificate: " .. err
               end
           end
         end
