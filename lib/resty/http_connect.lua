@@ -166,7 +166,7 @@ local function connect(self, options)
         local proxy_uri_t
         proxy_uri_t, err = self:parse_uri(proxy_uri)
         if not proxy_uri_t then
-            return nil, "uri parse error: ", err
+            return nil, "uri parse error: " .. err
         end
 
         local proxy_scheme = proxy_uri_t[1]
@@ -260,7 +260,7 @@ local function connect(self, options)
         if not ok then
             return nil, "failed to connect to: " .. (proxy_host or "") ..
                         ":" .. (proxy_port or "") ..
-                        ": ", err
+                        ": " .. err
         end
 
         if ssl and sock:getreusedtimes() == 0 then
@@ -280,7 +280,7 @@ local function connect(self, options)
             })
 
             if not res then
-                return nil, "failed to issue CONNECT to proxy:", err
+                return nil, "failed to issue CONNECT to proxy: " .. err
             end
 
             if res.status < 200 or res.status > 299 then
