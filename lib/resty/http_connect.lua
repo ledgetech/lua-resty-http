@@ -243,6 +243,7 @@ local function connect(self, options)
                    .. ":" .. tostring(ssl_verify)
                    .. ":" .. (proxy_uri or "")
                    .. ":" .. (request_scheme == "https" and proxy_authorization or "")
+                   .. ":" .. (cert_hash or "")
         -- in the above we only add the 'proxy_authorization' as part of the poolname
         -- when the request is https. Because in that case the CONNECT request (which
         -- carries the authorization header) is part of the connect procedure, whereas
