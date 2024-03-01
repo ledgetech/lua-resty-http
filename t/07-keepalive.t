@@ -432,3 +432,166 @@ connection must be closed
 --- no_error_log
 [error]
 [warn]
+
+=== TEST 8 Generic interface, Connection: Keep-alive. Don't read body and check connection isn't reused
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+
+            local res, err = httpc:request{
+                path = "/b"
+            }
+
+            ngx.say(res.headers["Connection"])
+            local ok, err = httpc:set_keepalive()
+            ngx.say(err)
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+response not fully read
+0
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 9 Pooling connection immediately after connecting should work
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:set_keepalive())
+        ';
+    }
+--- request
+GET /a
+--- response_body
+1
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 10 Reused client still checks pooling is ready
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+
+            local res, err = httpc:request{
+                path = "/b"
+            }
+
+            local body = res:read_body()
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+            res, err = httpc:request{
+                path = "/b"
+            }
+            local ok
+            ok, err = httpc:set_keepalive()
+            ngx.say(err)
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+1
+1
+response not fully read
+--- no_error_log
+[error]
+[warn]
+
+=== TEST 11 Test the connection is reused on non-body requests
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            local http = require "resty.http"
+            local httpc = http.new()
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+
+            local res, err = httpc:request{
+                method = "HEAD",
+                path = "/b"
+            }
+
+            ngx.say(res.headers["Connection"])
+            ngx.say(httpc:set_keepalive())
+
+            httpc:connect({
+                scheme = "http",
+                host = "127.0.0.1",
+                port = ngx.var.server_port
+            })
+            ngx.say(httpc:get_reused_times())
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("OK")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+keep-alive
+1
+1
+--- no_error_log
+[error]
+[warn]
