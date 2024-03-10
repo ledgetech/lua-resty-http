@@ -160,3 +160,65 @@ OK
 --- no_error_log
 [error]
 [warn]
+
+
+
+=== TEST 3: Drain trailer when setting keepalive to avoid "unread data in buffer" error
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/b"
+            local httpc = http.new()
+            local res = assert(httpc:request_uri(uri))
+            local hash = ngx.md5(res.body)
+            if res.headers["Content-MD5"] == hash then
+                ngx.say("OK")
+            else
+                ngx.say(res.headers["Content-MD5"])
+            end
+        }
+    }
+    location = /b {
+        content_by_lua_block {
+            -- We use the raw socket to compose a response, since OpenResty
+            -- doesnt support trailers natively.
+
+            ngx.req.read_body()
+            local sock, err = ngx.req.socket(true)
+            if not sock then
+                ngx.say(err)
+            end
+
+            local res = {}
+            table.insert(res, "HTTP/1.1 200 OK")
+            table.insert(res, "Date: " .. ngx.http_time(ngx.time()))
+            table.insert(res, "Transfer-Encoding: chunked")
+            table.insert(res, "Trailer: Content-MD5")
+            table.insert(res, "")
+
+            local body = "Hello, World"
+
+            table.insert(res, string.format("%x", #body))
+            table.insert(res, body)
+            table.insert(res, "0")
+            table.insert(res, "")
+
+            table.insert(res, "Content-MD5: " .. ngx.md5(body))
+
+            table.insert(res, "")
+            table.insert(res, "")
+            sock:send(table.concat(res, "\r\n"))
+
+            -- don't close connection so we can set keepalive in the test
+            ngx.sleep(0.5)
+        }
+    }
+--- request
+GET /a
+--- response_body
+OK
+--- no_error_log
+[error]
+[warn]
