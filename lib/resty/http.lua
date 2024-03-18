@@ -522,6 +522,9 @@ local function _body_reader(sock, content_length, default_chunk_size)
 
         elseif not max_chunk_size then
             -- We have a length and potentially keep-alive, but want everything.
+            if content_length == 0 then
+                co_yield("")
+            end
             co_yield(sock:receive(content_length))
 
         else
