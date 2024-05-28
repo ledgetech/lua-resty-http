@@ -794,8 +794,9 @@ function _M.read_response(self, params)
     end
 
     -- keepalive is true by default. Determine if this is correct or not.
-    local ok, connection = pcall(str_lower, res_headers["Connection"])
-    if ok then
+    local connection = res_headers["Connection"]
+    if connection ~= nil then
+        connection = str_lower(connection)
         if (version == 1.1 and str_find(connection, "close", 1, true)) or
            (version == 1.0 and not str_find(connection, "keep-alive", 1, true)) then
             self.keepalive = false
