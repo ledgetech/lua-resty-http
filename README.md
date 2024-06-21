@@ -85,6 +85,30 @@ local status = res.status
 local length = res.headers["Content-Length"]
 local body   = res.body
 ```
+Example #2
+```lua
+local cjson = require "cjson"
+local httpc = require("resty.http").new()
+local payload = {
+   Source="abc1",
+   contactId="id145"
+}
+local resp, resp_err = httpc:request_uri("http://example.com/helloworld", {
+      method = "POST",
+      headers = {
+      ["accept"] = "application/json",
+      ["Content-Type"] = "application/json",
+      ["Authentication"] = "Bearer " .. your_token
+      },
+      body = cjson.encode(get_contact_payload) --convert to json from lua table
+      })
+if resp_err then
+   print("error:  ", resp_err)
+else
+   print("body ", resp.body)
+   local data = cjson.decode(resp.body) -- convert into a lua table
+end
+```
 
 ### Streamed request
 
