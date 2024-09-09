@@ -4,7 +4,6 @@ local ngx_re_sub = ngx.re.sub
 local ngx_re_find = ngx.re.find
 local ngx_log = ngx.log
 local ngx_WARN = ngx.WARN
-local ngx_DEBUG = ngx.DEBUG
 local to_hex = require("resty.string").to_hex
 local ffi_gc = ffi.gc
 local ffi_cast = ffi.cast
@@ -249,8 +248,6 @@ local function connect(self, options)
         -- carries the authorization header) is part of the connect procedure, whereas
         -- with a plain http request the authorization is part of the actual request.
     end
-
-    ngx_log(ngx_DEBUG, "poolname: ", poolname)
 
     -- do TCP level connection
     local tcp_opts = { pool = poolname, pool_size = pool_size, backlog = backlog }
