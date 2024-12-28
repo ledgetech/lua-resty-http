@@ -903,8 +903,7 @@ function _M.request_pipeline(self, requests)
     return responses
 end
 
-
-function _M.request_uri(self, uri, params)
+function _M.prepare_request_params(self, uri, params)
     params = tbl_copy(params or {}) -- Take by value
     if self.proxy_opts then
         params.proxy_opts = tbl_copy(self.proxy_opts or {})
@@ -929,6 +928,15 @@ function _M.request_uri(self, uri, params)
             params.proxy_opts.https_proxy_authorization = proxy_auth
             params.proxy_opts.http_proxy_authorization = proxy_auth
         end
+    end
+
+    return params
+end
+
+function _M.request_uri(self, uri, params)
+    local params, err = self:prepare_request_params(uri, params)
+    if not params then
+        return nil, err
     end
 
     local ok, err = self:connect(params)
