@@ -959,6 +959,7 @@ function _M.request_uri(self, uri, params)
     else
         local ok, err = self:set_keepalive(params.keepalive_timeout, params.keepalive_pool)
         if not ok then
+            self:close()
             ngx_log(ngx_ERR, err)
         end
 
