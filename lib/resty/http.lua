@@ -706,7 +706,8 @@ function _M.send_request(self, params)
                 headers["Content-Length"] = length
 
             elseif body == nil and EXPECTING_BODY[str_upper(params.method)] then
-                headers["Content-Length"] = 0
+                return nil, "Request body is nil but " .. str_upper(params.method)
+                    .. " method expects a body. Use an empty string \"\" if you want to send an empty body."
 
             elseif body ~= nil then
                 headers["Content-Length"] = #tostring(body)

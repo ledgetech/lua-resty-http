@@ -101,13 +101,13 @@ location /a {
         }
 
         local res, err = httpc:request(params)
-        assert(res, "request should return positvely")
+        assert(res, "request should return positively")
 
         assert(not params.headers, "params table should not be modified")
 
         local res, err =
             httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port, params)
-        assert(res, "request_uri should return positvely")
+        assert(res, "request_uri should return positively")
 
         assert(not params.headers, "params table should not be modified")
 
@@ -116,7 +116,7 @@ location /a {
             "connect should return positively")
 
         local pipeline_params = {
-            { path = "/b", method = "POST" },
+            { path = "/b", method = "POST", body = "" },
             { path = "/b", method = "HEAD" },
         }
 
