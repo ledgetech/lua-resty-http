@@ -269,7 +269,7 @@ nil closed
 lua tcp socket read timed out
 
 
-=== TEST 7: Content-Length is set on POST/PUT/PATCH requests when body is absent
+=== TEST 7: Content-Length is set on POST/PUT/PATCH requests when body is explicitly empty
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -277,7 +277,7 @@ lua tcp socket read timed out
             for i, method in ipairs({ "POST", "PUT", "PATCH" }) do
               local http = require "resty.http"
               local httpc = http.new()
-              local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b", { method = method })
+              local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b", { method = method, body = "" })
 
               if not res then
                   ngx.log(ngx.ERR, err)
@@ -336,3 +336,36 @@ Content-Length: nil
 [error]
 [warn]
 
+
+=== TEST 9: Error when body is nil for POST/PUT/PATCH requests
+--- http_config eval: $::HttpConfig
+--- config
+    location = /a {
+        content_by_lua '
+            for i, method in ipairs({ "POST", "PUT", "PATCH" }) do
+              local http = require "resty.http"
+              local httpc = http.new()
+              local res, err = httpc:request_uri("http://127.0.0.1:"..ngx.var.server_port.."/b", { method = method })
+
+              if not res then
+                  ngx.say(method, ": ", err)
+              else
+                  ngx.say(method, ": success")
+              end
+            end
+        ';
+    }
+    location = /b {
+        content_by_lua '
+            ngx.say("Should not reach here")
+        ';
+    }
+--- request
+GET /a
+--- response_body
+POST: Request body is nil but POST method expects a body. Use an empty string "" if you want to send an empty body.
+PUT: Request body is nil but PUT method expects a body. Use an empty string "" if you want to send an empty body.
+PATCH: Request body is nil but PATCH method expects a body. Use an empty string "" if you want to send an empty body.
+--- no_error_log
+[error]
+[warn]
