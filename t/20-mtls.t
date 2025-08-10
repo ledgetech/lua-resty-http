@@ -103,6 +103,7 @@ GET /t
 [warn]
 
 
+
 === TEST 2: Connection fails during handshake with not priv_key
 --- http_config eval: $::mtls_http_config
 --- config eval
@@ -157,6 +158,7 @@ GET /t
 failed to connect: bad ssl_client_priv_key: cdata expected, got string
 --- skip_nginx
 4: < 1.21.4
+
 
 
 === TEST 3: Connection succeeds with client cert and key.
@@ -215,6 +217,8 @@ GET /t
 hello, CN=foo@example.com,O=OpenResty,ST=California,C=US
 --- skip_nginx
 4: < 1.21.4
+
+
 
 === TEST 4: users with different client certs should not share the same pool.
 --- http_config eval: $::mtls_http_config

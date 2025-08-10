@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Chunked streaming body reader returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
@@ -74,6 +75,7 @@ chunked
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: Non-Chunked streaming body reader returns the right content length.
@@ -131,7 +133,8 @@ nil
 [warn]
 
 
-=== TEST 2b: Non-Chunked streaming body reader, buffer size becomes nil
+
+=== TEST 3b: Non-Chunked streaming body reader, buffer size becomes nil
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -184,7 +187,8 @@ nil
 Buffer size not specified, bailing
 
 
-=== TEST 3: HTTP 1.0 body reader with no max size returns the right content length.
+
+=== TEST 4: HTTP 1.0 body reader with no max size returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -240,7 +244,8 @@ nil
 [warn]
 
 
-=== TEST 4: HTTP 1.0 body reader with max chunk size returns the right content length.
+
+=== TEST 5: HTTP 1.0 body reader with max chunk size returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -298,7 +303,8 @@ nil
 [warn]
 
 
-=== TEST 4b: HTTP 1.0 body reader with no content length, stream works as expected.
+
+=== TEST 6b: HTTP 1.0 body reader with no content length, stream works as expected.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -365,7 +371,8 @@ GET /a
 [warn]
 
 
-=== TEST 5: Chunked streaming body reader with max chunk size returns the right content length.
+
+=== TEST 7: Chunked streaming body reader with max chunk size returns the right content length.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -421,7 +428,8 @@ chunked
 [warn]
 
 
-=== TEST 6: Request reader correctly reads body
+
+=== TEST 8: Request reader correctly reads body
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -450,7 +458,9 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
 [error]
 [warn]
 
-=== TEST 7: Request reader correctly reads body in chunks
+
+
+=== TEST 9: Request reader correctly reads body in chunks
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -484,7 +494,8 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
 [warn]
 
 
-=== TEST 8: Request reader passes into client
+
+=== TEST 10: Request reader passes into client
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -532,7 +543,8 @@ foobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarbazfoobarba
 [warn]
 
 
-=== TEST 9: Body reader is a function returning nil when no body is present.
+
+=== TEST 11: Body reader is a function returning nil when no body is present.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -569,7 +581,8 @@ GET /a
 [warn]
 
 
-=== TEST 10: Issue a notice (but do not error) if trying to read the request body in a subrequest
+
+=== TEST 12: Issue a notice (but do not error) if trying to read the request body in a subrequest
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {

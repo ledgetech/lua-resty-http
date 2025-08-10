@@ -25,6 +25,7 @@ run_tests();
 
 
 __DATA__
+
 === TEST 1: Reuse an instance connecting on different ports / paths
 --- http_config eval: $::HttpConfig
 --- config
@@ -83,6 +84,7 @@ c
 d
 --- no_error_log
 [error]
+
 
 
 === TEST 2: Reuse input params table

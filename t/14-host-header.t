@@ -40,6 +40,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Default HTTP port is not added to Host header
 --- http_config eval: $::HttpConfig
 --- config
@@ -57,6 +58,7 @@ GET /lua
 [error]
 --- error_log
 Host: www.google.com
+
 
 
 === TEST 2: Default HTTPS port is not added to Host header
@@ -77,6 +79,7 @@ GET /lua
 [error]
 --- error_log
 Host: www.google.com
+
 
 
 === TEST 3: Non-default HTTP port is added to Host header
@@ -103,6 +106,7 @@ GET /lua
 [error]
 --- error_log
 Host: 127.0.0.1:8080
+
 
 
 === TEST 4: Non-default HTTPS port is added to Host header
@@ -139,6 +143,7 @@ GET /lua
 Host: 127.0.0.1:8081
 
 
+
 === TEST 5: No host header on a unix domain socket returns a useful error.
 --- http_config eval: $::HttpConfig
 --- config
@@ -168,6 +173,8 @@ GET /a
 [error]
 --- response_body
 Unable to generate a useful Host header for a unix domain socket. Please provide one.
+
+
 
 === TEST 6: Host header is correct when http_proxy is used
 --- http_config

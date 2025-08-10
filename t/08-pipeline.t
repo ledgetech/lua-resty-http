@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1 Test that pipelined requests can be read correctly.
 --- http_config eval: $::HttpConfig
 --- config
@@ -94,6 +95,7 @@ D
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: Test we can handle timeouts on reading the pipelined requests.
