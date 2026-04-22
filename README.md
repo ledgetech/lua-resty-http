@@ -179,6 +179,7 @@ The options table has the following fields:
 * `ssl_send_status_req`: option as per [OpenResty docs](https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake)
 * `ssl_client_cert`: will be passed to `tcpsock:setclientcert`. Requires `ngx_lua_http_module` >= v0.10.23.
 * `ssl_client_priv_key`: as above.
+* `ssl_trusted_store`: a custom trusted CA store (cdata `X509_STORE*`) to verify the server certificate against, passed to `tcpsock:settrustedstore`. Requires a cosocket build with `settrustedstore` support.
 
 ## set\_timeout
 

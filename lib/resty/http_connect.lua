@@ -53,6 +53,11 @@ client:connect {
     ssl_client_cert = nil,
     ssl_client_priv_key = nil,
 
+    -- Custom trusted CA store (cdata `X509_STORE*`), passed to
+    -- `tcpsock:settrustedstore`. Requires a cosocket build with
+    -- `settrustedstore` support.
+    ssl_trusted_store = nil,
+
     proxy_opts,             -- proxy opts, defaults to global proxy options
 }
 ]]
@@ -81,6 +86,7 @@ local function connect(self, options)
     -- ssl settings
     local ssl, ssl_reused_session, ssl_server_name
     local ssl_verify, ssl_send_status_req, ssl_client_cert, ssl_client_priv_key
+    local ssl_trusted_store
     if request_scheme == "https" then
         ssl = true
         ssl_reused_session = options.ssl_reused_session
@@ -92,6 +98,7 @@ local function connect(self, options)
         end
         ssl_client_cert = options.ssl_client_cert
         ssl_client_priv_key = options.ssl_client_priv_key
+        ssl_trusted_store = options.ssl_trusted_store
     end
 
     -- proxy related settings
@@ -244,6 +251,7 @@ local function connect(self, options)
                    .. ":" .. (proxy_uri or "")
                    .. ":" .. (request_scheme == "https" and proxy_authorization or "")
                    .. ":" .. (cert_hash or "")
+                   .. ":" .. tostring(ssl_trusted_store or "")
         -- in the above we only add the 'proxy_authorization' as part of the poolname
         -- when the request is https. Because in that case the CONNECT request (which
         -- carries the authorization header) is part of the connect procedure, whereas
@@ -316,6 +324,19 @@ local function connect(self, options)
               ok, err = sock:setclientcert(ssl_client_cert, ssl_client_priv_key)
               if not ok then
                   return nil, "could not set client certificate: " .. err
+              end
+          end
+        end
+
+        -- Custom trusted CA store support
+        if ssl_trusted_store then
+          if type(sock.settrustedstore) ~= "function" then
+              return nil, "cannot use ssl_trusted_store without settrustedstore support"
+
+          else
+              ok, err = sock:settrustedstore(ssl_trusted_store)
+              if not ok then
+                  return nil, "could not set trusted store: " .. err
               end
           end
         end
