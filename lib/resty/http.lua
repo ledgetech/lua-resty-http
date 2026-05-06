@@ -738,6 +738,10 @@ function _M.send_request(self, params)
     if params.version == 1.0 and not headers["Connection"] then
         headers["Connection"] = "Keep-Alive"
     end
+    -- W3C trace context support with NGINX tracer
+    if not headers["traceparent"] and ngx.var.http_traceparent then
+      headers["traceparent"] = ngx.var.http_traceparent
+    end
 
     params.headers = headers
 
