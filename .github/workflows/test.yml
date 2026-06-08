@@ -6,11 +6,13 @@ jobs:
   luacheck:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: leafo/gh-actions-lua@v8
       with:
         luaVersion: "luajit-openresty"
-    - uses: leafo/gh-actions-luarocks@v4
+    - uses: leafo/gh-actions-luarocks@v5
+      with:
+        luarocksVersion: "3.12.2"
     - run: luarocks install luacheck
     - run: luacheck lib
 
@@ -30,17 +32,17 @@ jobs:
       options: --init
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install deps
       run: |
-        apk add --no-cache curl perl bash wget git perl-dev libarchive-tools nodejs
+        apk add --no-cache curl perl bash wget git perl-dev libarchive-tools nodejs build-base
         ln -s /usr/bin/bsdtar /usr/bin/tar
 
     - name: Install CPAN
       run: curl -s -L http://xrl.us/cpanm > /bin/cpanm && chmod +x /bin/cpanm
 
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cpan
@@ -50,12 +52,27 @@ jobs:
     - name: Install Test::Nginx
       run: cpanm -q -n Test::Nginx
 
+    - name: Install latest LuaRocks
+      run: |
+        # Remove old luarocks if exists
+        rm -rf /usr/local/openresty/luajit/bin/luarocks* || true
+        # Download and install latest LuaRocks
+        cd /tmp
+        wget https://luarocks.org/releases/luarocks-3.12.2.tar.gz
+        tar zxpf luarocks-3.12.2.tar.gz
+        cd luarocks-3.12.2
+        ./configure --prefix=/usr/local/openresty/luajit \
+                    --with-lua=/usr/local/openresty/luajit \
+                    --lua-suffix=jit \
+                    --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+        make build && make install
+
     - name: Install Luacov
       run: |
+        # Clear any existing cache
+        rm -rf ~/.cache/luarocks || true
         /usr/local/openresty/luajit/bin/luarocks install luacov
         /usr/local/openresty/luajit/bin/luarocks install lua-resty-openssl
-
-    - uses: actions/checkout@v2
 
     - name: Run tests
       run: make coverage
