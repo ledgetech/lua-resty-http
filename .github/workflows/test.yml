@@ -39,7 +39,7 @@ jobs:
         ln -s /usr/bin/bsdtar /usr/bin/tar
 
     - name: Install CPAN
-      run: curl -s -L http://xrl.us/cpanm > /bin/cpanm && chmod +x /bin/cpanm
+      run: curl -s -L https://cpanmin.us | perl - App::cpanminus > /bin/cpanm && chmod +x /bin/cpanm
 
     - name: Cache
       uses: actions/cache@v3
