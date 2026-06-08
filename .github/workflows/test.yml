@@ -55,18 +55,25 @@ jobs:
 
     - name: Install latest LuaRocks
       run: |
-        # Remove old luarocks if exists
-        rm -rf /usr/local/openresty/luajit/bin/luarocks* || true
-        # Download and install latest LuaRocks
-        cd /tmp
-        wget https://luarocks.org/releases/luarocks-3.12.2.tar.gz
-        tar zxpf luarocks-3.12.2.tar.gz
-        cd luarocks-3.12.2
-        ./configure --prefix=/usr/local/openresty/luajit \
-                    --with-lua=/usr/local/openresty/luajit \
-                    --lua-suffix=jit \
-                    --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
-        make build && make install
+        case ${{ matrix.openresty_version }} in
+        1.19.* | 1.21.*)
+          # Remove old luarocks if exists
+          rm -rf /usr/local/openresty/luajit/bin/luarocks* || true
+          # Download and install latest LuaRocks
+          cd /tmp
+          wget https://luarocks.org/releases/luarocks-3.12.2.tar.gz
+          tar zxpf luarocks-3.12.2.tar.gz
+          cd luarocks-3.12.2
+          ./configure --prefix=/usr/local/openresty/luajit \
+                      --with-lua=/usr/local/openresty/luajit \
+                      --lua-suffix=jit \
+                      --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+          make build && make install
+          ;;
+        *)
+          echo "No Luarocks update required"
+          ;;
+        esac
 
     - name: Install Luacov
       run: |
