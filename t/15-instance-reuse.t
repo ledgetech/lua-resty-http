@@ -53,12 +53,12 @@ location /a {
         assert(res3 ~= res2, "responses should be unique tables")
         assert(res3.headers ~= res2.headers, "headers should be unique tables")
 
-        assert(httpc.keepalive == false, "keepalive flag should be false")
+        assert(httpc.keepalive_supported == false, "keepalive flag should be false")
 
         assert(httpc:connect("127.0.0.1", ngx.var.server_port),
             "connect should return positively")
 
-        assert(httpc.keepalive == true, "keepalive flag should be true")
+        assert(httpc.keepalive_supported == true, "keepalive flag should be true")
 
     }
 }

@@ -34,26 +34,26 @@ be kept alive.
 Call it with a single options table as follows:
 
 client:connect {
-    scheme = "https"        -- scheme to use, or nil for unix domain socket
-    host = "myhost.com",    -- target machine, or a unix domain socket
-    port = nil,             -- port on target machine, will default to 80/443 based on scheme
-    pool = nil,             -- connection pool name, leave blank! this function knows best!
-    pool_size = nil,        -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
+    scheme = "https"                  -- scheme to use, or nil for unix domain socket
+    host = "myhost.com",              -- target machine, or a unix domain socket
+    port = nil,                       -- port on target machine, will default to 80/443 based on scheme
+    pool = nil,                       -- connection pool name, leave blank! this function knows best!
+    pool_size = nil,                  -- options as per: https://github.com/openresty/lua-nginx-module#tcpsockconnect
     backlog = nil,
 
     -- ssl options as per: https://github.com/openresty/lua-nginx-module#tcpsocksslhandshake
     ssl_reused_session = nil
     ssl_server_name = nil,
     ssl_send_status_req = nil,
-    ssl_verify = true,      -- NOTE: defaults to true
-    ctx = nil,              -- NOTE: not supported
+    ssl_verify = true,                -- NOTE: defaults to true
+    ctx = nil,                        -- NOTE: not supported
 
     -- mTLS options: These require support for mTLS in cosockets, which first
     -- appeared in `ngx_http_lua_module` v0.10.23.
     ssl_client_cert = nil,
     ssl_client_priv_key = nil,
 
-    proxy_opts,             -- proxy opts, defaults to global proxy options
+    proxy_opts,                       -- proxy opts, defaults to global proxy options
 }
 ]]
 local function connect(self, options)
@@ -329,7 +329,9 @@ local function connect(self, options)
 
     self.host = request_host
     self.port = request_port
-    self.keepalive = true
+    -- Immediately after connection - keepalive should be possible
+    self.reader_state.keepalive_ready = true
+    self.keepalive_supported = true
     self.ssl = ssl
     -- set only for http, https has already been handled
     self.http_proxy_auth = request_scheme ~= "https" and proxy_authorization or nil
