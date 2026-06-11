@@ -10,6 +10,7 @@ local str_lower = string.lower
 local str_upper = string.upper
 local str_find = string.find
 local str_sub = string.sub
+local str_byte = string.byte
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 local ngx_encode_args = ngx.encode_args
@@ -38,6 +39,7 @@ local ipairs = ipairs
 local pairs = pairs
 local pcall = pcall
 local type = type
+local QUESTION_MARK = str_byte("?")
 
 
 -- http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13.5.1
@@ -316,7 +318,7 @@ local function _format_request(self, params)
         query = ngx_encode_args(query)
     end
 
-    if query ~= "" and str_sub(query, 1, 1) ~= "?" then
+    if query ~= "" and str_byte(query) ~= QUESTION_MARK then
         query = "?" .. query
     end
 
