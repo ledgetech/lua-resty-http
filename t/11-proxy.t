@@ -25,6 +25,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Proxy GET request and response
 --- http_config eval: $::HttpConfig
 --- config
@@ -61,6 +62,7 @@ X-Test: foo
 [warn]
 --- error_log
 [debug]
+
 
 
 === TEST 2: Proxy POST request and response
@@ -107,6 +109,7 @@ X-Test: foo
 [debug]
 
 
+
 === TEST 3: Proxy multiple headers
 --- http_config eval: $::HttpConfig
 --- config
@@ -142,6 +145,7 @@ OK
 [warn]
 --- error_log
 [debug]
+
 
 
 === TEST 4: Proxy still works with spaces in URI

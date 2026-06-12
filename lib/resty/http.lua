@@ -974,7 +974,7 @@ function _M.request_uri(self, uri, params)
 end
 
 
-function _M.get_client_body_reader(_, chunksize, sock)
+function _M.get_client_body_reader(_, chunksize, sock, headers)
     chunksize = chunksize or 65536
 
     if not sock then
@@ -994,8 +994,11 @@ function _M.get_client_body_reader(_, chunksize, sock)
         end
     end
 
-    local headers = ngx_req_get_headers()
-    local length = headers.content_length
+    if not headers then
+        headers = ngx_req_get_headers()
+    end
+
+    local length = headers["Content-Length"]
     if length then
         return _body_reader(sock, tonumber(length), chunksize)
     elseif transfer_encoding_is_chunked(headers) then

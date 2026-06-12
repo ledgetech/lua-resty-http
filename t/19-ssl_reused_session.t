@@ -69,6 +69,7 @@ GET /t
 [alert]
 
 
+
 === TEST 2: ssl_reused_session false does not return session userdata
 --- http_config eval: $::HttpConfig
 --- config
@@ -96,6 +97,7 @@ GET /t
 --- no_error_log
 [error]
 [alert]
+
 
 
 === TEST 3: ssl_reused_session accepts userdata

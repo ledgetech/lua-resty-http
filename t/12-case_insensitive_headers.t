@@ -24,6 +24,7 @@ no_diff();
 run_tests();
 
 __DATA__
+
 === TEST 1: Unit test header normalisation
 --- http_config eval: $::HttpConfig
 --- config
@@ -54,6 +55,7 @@ GET /a
 --- response_body
 --- no_error_log
 [error]
+
 
 
 === TEST 2: Integration test headers normalisation
@@ -89,6 +91,7 @@ bar
 bar
 --- no_error_log
 [error]
+
 
 
 === TEST 3: Integration test request headers normalisation
@@ -129,6 +132,7 @@ bar
 [error]
 
 
+
 === TEST 4: Test that headers remain unique
 --- http_config eval: $::HttpConfig
 --- config
@@ -150,6 +154,7 @@ GET /a
 x-a-header: b
 --- no_error_log
 [error]
+
 
 
 === TEST 5: Prove header tables are always unique

@@ -28,6 +28,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: No traceparent header is set
 --- http_config eval: $::HttpConfig
 --- config
@@ -45,6 +46,7 @@ GET /lua
 --- no_error_log
 [error]
 traceparent:
+
 
 
 === TEST 2: The traceparent header is correctly added when ngx.var.http_traceparent is used
@@ -66,6 +68,7 @@ GET /lua
 [error]
 --- error_log
 traceparent: 00-000000000000000019f4e02c82857913-11488c6e00d1d248-01
+
 
 
 === TEST 3: The traceparent header is not modified from ngx.var.http_traceparent if it is already set

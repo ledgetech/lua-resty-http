@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Simple default get.
 --- http_config eval: $::HttpConfig
 --- config
@@ -57,6 +58,7 @@ OK
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: HTTP 1.0
@@ -93,6 +95,7 @@ OK
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 3: Status code and reason phrase
@@ -136,6 +139,7 @@ OK
 [warn]
 
 
+
 === TEST 4: Response headers
 --- http_config eval: $::HttpConfig
 --- config
@@ -172,6 +176,7 @@ x-value
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 5: Query
@@ -223,7 +228,8 @@ X-Header-B: 2
 [warn]
 
 
-=== TEST 7: HEAD has no body.
+
+=== TEST 6: HEAD has no body.
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -260,7 +266,8 @@ GET /a
 [warn]
 
 
-=== TEST 8: Errors when not initialized
+
+=== TEST 7: Errors when not initialized
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -300,7 +307,8 @@ not initialized
 [warn]
 
 
-=== TEST 12: Allow empty HTTP header values (RFC7230)
+
+=== TEST 8: Allow empty HTTP header values (RFC7230)
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -342,7 +350,9 @@ OK
 [error]
 [warn]
 
-=== TEST 13: Should return error on invalid HTTP version in response status line
+
+
+=== TEST 9: Should return error on invalid HTTP version in response status line
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -366,7 +376,9 @@ GET /a
 [error]
 [warn]
 
-=== TEST 14: Should return error on invalid status code in response status line
+
+
+=== TEST 10: Should return error on invalid status code in response status line
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -392,7 +404,7 @@ GET /a
 
 
 
-=== TEST 14: Empty query
+=== TEST 11: Empty query
 --- http_config eval: $::HttpConfig
 --- config
     location = /a {
@@ -429,5 +441,3 @@ GET /a
 --- no_error_log
 [error]
 [warn]
-
-

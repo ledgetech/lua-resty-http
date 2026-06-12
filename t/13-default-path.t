@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: request_uri (check the default path)
 --- http_config eval: $::HttpConfig
 --- config

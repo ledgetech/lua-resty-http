@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Parse URI errors if malformed
 --- http_config eval: $::HttpConfig
 --- config
@@ -41,6 +42,7 @@ bad uri: http:///example.com
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: Parse URI fills in defaults correctly
@@ -81,6 +83,7 @@ scheme: http, host: example.com, port: 80, path: /foo/bar, query: a=1&b=2
 [warn]
 
 
+
 === TEST 3: Parse URI fills in defaults correctly, using backwards compatible mode
 --- http_config eval: $::HttpConfig
 --- config
@@ -117,6 +120,7 @@ scheme: http, host: example.com, port: 80, path: /foo/bar?a=1&b=2
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 4: IPv6 notation
