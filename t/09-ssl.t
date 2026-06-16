@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: parse_uri returns port 443 for https URIs
 --- http_config eval: $::HttpConfig
 --- config
@@ -42,6 +43,7 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: parse_uri returns port 80 for http URIs

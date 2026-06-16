@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Trailers. Check Content-MD5 generated after the body is sent matches up.
 --- http_config eval: $::HttpConfig
 --- config
@@ -94,6 +95,7 @@ OK
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: Advertised trailer does not exist, handled gracefully.

@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1 Simple interface, Connection: Keep-alive. Test the connection is reused.
 --- http_config eval: $::HttpConfig
 --- config
@@ -57,6 +58,7 @@ keep-alive
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2 Simple interface, Connection: close, test we don't try to keepalive, but also that subsequent connections can keepalive.
@@ -107,6 +109,7 @@ GET /a
 [warn]
 
 
+
 === TEST 3 Generic interface, Connection: Keep-alive. Test the connection is reused.
 --- http_config eval: $::HttpConfig
 --- config
@@ -151,6 +154,7 @@ keep-alive
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 4 Generic interface, Connection: Close. Test we don't try to keepalive, but also that subsequent connections can keepalive.
@@ -214,6 +218,7 @@ connection must be closed
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 5: Generic interface, HTTP 1.0, no connection header. Test we don't try to keepalive, but also that subsequent connections can keepalive.
@@ -284,6 +289,8 @@ connection must be closed
 --- no_error_log
 [error]
 [warn]
+
+
 
 === TEST 6: Simple interface, override settings
 --- http_config eval: $::HttpConfig
@@ -363,6 +370,8 @@ keep-alive
 --- no_error_log
 [error]
 [warn]
+
+
 
 === TEST 7: Generic interface, HTTP 1.1, Connection: Upgrade, close. Test we don't try to keepalive, but also that subsequent connections can keepalive.
 --- http_config eval: $::HttpConfig

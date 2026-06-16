@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Non chunked.
 --- http_config eval: $::HttpConfig
 --- config
@@ -65,6 +66,7 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 2: Chunked. The number of chunks received when no max size is given proves the response was in fact chunked.
@@ -127,6 +129,7 @@ GET /a
 [warn]
 
 
+
 === TEST 3: Chunked using read_body method.
 --- http_config eval: $::HttpConfig
 --- config
@@ -173,6 +176,7 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 4: Chunked. multiple-headers, mixed case
@@ -240,6 +244,7 @@ table
 [warn]
 
 
+
 === TEST 5: transfer_encoding_is_chunked utility.
 --- http_config eval: $::HttpConfig
 --- config
@@ -275,6 +280,7 @@ GET /a
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 6: Don't send Content-Length if Transfer-Encoding is specified

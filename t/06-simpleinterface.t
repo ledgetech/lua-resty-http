@@ -24,6 +24,7 @@ no_long_string();
 run_tests();
 
 __DATA__
+
 === TEST 1: Simple URI interface
 --- http_config eval: $::HttpConfig
 --- config
@@ -64,6 +65,7 @@ OK
 [warn]
 
 
+
 === TEST 2: Simple URI interface HTTP 1.0
 --- http_config eval: $::HttpConfig
 --- config
@@ -102,6 +104,7 @@ OK
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 3 Simple URI interface, params override
@@ -149,6 +152,7 @@ OK
 [warn]
 
 
+
 === TEST 4 Simple URI interface, params override, query as string
 --- http_config eval: $::HttpConfig
 --- config
@@ -191,6 +195,7 @@ OK
 [warn]
 
 
+
 === TEST 5 Simple URI interface, params override, query as string, as leading ?
 --- http_config eval: $::HttpConfig
 --- config
@@ -231,6 +236,8 @@ OK
 [error]
 [warn]
 
+
+
 === TEST 6: Connection is closed on error
 --- http_config eval: $::HttpConfig
 --- config
@@ -267,6 +274,7 @@ GET /a
 nil closed
 --- error_log
 lua tcp socket read timed out
+
 
 
 === TEST 7: Content-Length is set on POST/PUT/PATCH requests when body is explicitly empty
@@ -307,6 +315,7 @@ PATCH Content-Length: 0
 [warn]
 
 
+
 === TEST 8: Content-Length is not set on GET requests when body is absent
 --- http_config eval: $::HttpConfig
 --- config
@@ -335,6 +344,7 @@ Content-Length: nil
 --- no_error_log
 [error]
 [warn]
+
 
 
 === TEST 9: Error when body is nil for POST/PUT/PATCH requests
