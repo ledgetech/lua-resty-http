@@ -71,11 +71,10 @@ local NGX_VAR_PHASES = {
     server_rewrite = true,
     access         = true,
     content        = true,
-    preread        = true,
     header_filter  = true,
     body_filter    = true,
     log            = true,
-    balancer       = true,
+    precontent     = true,
 }
 
 
