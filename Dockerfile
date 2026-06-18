@@ -1,4 +1,4 @@
-FROM openresty/openresty:1.29.2.4-alpine-fat
+FROM openresty/openresty:1.31.1.1-alpine-fat
 
 RUN apk add --no-cache curl perl bash wget git perl-dev libarchive-tools nodejs; \
     ln -s /usr/bin/bsdtar /usr/bin/tar
