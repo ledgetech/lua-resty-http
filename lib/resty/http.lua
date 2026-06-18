@@ -62,6 +62,22 @@ local EXPECTING_BODY = {
 }
 
 
+-- ngx.var is only readable in request-bearing phases. Reading it from a
+-- request-less phase (init, init_worker, timer, etc.) raises an error, so we
+-- gate any ngx.var access on being in one of these phases.
+local NGX_VAR_PHASES = {
+    set            = true,
+    rewrite        = true,
+    server_rewrite = true,
+    access         = true,
+    content        = true,
+    header_filter  = true,
+    body_filter    = true,
+    log            = true,
+    precontent     = true,
+}
+
+
 -- Reimplemented coroutine.wrap, returning "nil, err" if the coroutine cannot
 -- be resumed. This protects user code from infinite loops when doing things like
 -- repeat
@@ -739,8 +755,11 @@ function _M.send_request(self, params)
     if params.version == 1.0 and not headers["Connection"] then
         headers["Connection"] = "Keep-Alive"
     end
-    -- W3C trace context support with NGINX tracer
-    if not headers["traceparent"] and ngx.var.http_traceparent then
+    -- W3C trace context support with NGINX tracer.
+    -- Only read ngx.var in request-bearing phases; doing so during
+    -- init/init_worker/timer (config preload, background jobs) raises an error.
+    if NGX_VAR_PHASES[ngx.get_phase()]
+        and not headers["traceparent"] and ngx.var.http_traceparent then
       headers["traceparent"] = ngx.var.http_traceparent
     end
 

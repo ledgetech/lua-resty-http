@@ -6,11 +6,11 @@ jobs:
   luacheck:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: leafo/gh-actions-lua@v8
+    - uses: actions/checkout@v6
+    - uses: leafo/gh-actions-lua@v13
       with:
         luaVersion: "luajit-openresty"
-    - uses: leafo/gh-actions-luarocks@v5
+    - uses: leafo/gh-actions-luarocks@v6
       with:
         luarocksVersion: "3.12.2"
     - run: luarocks install luacheck
@@ -20,7 +20,6 @@ jobs:
     strategy:
       matrix:
         openresty_version:
-          - 1.19.9.1
           - 1.21.4.4
           - 1.25.3.2
           - 1.27.1.2
@@ -33,7 +32,7 @@ jobs:
       options: --init
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install deps
       run: |
         apk add --no-cache curl perl bash wget git perl-dev libarchive-tools nodejs build-base
@@ -43,7 +42,7 @@ jobs:
       run: curl -s -L https://cpanmin.us | perl - App::cpanminus > /bin/cpanm && chmod +x /bin/cpanm
 
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cpan
