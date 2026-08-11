@@ -52,6 +52,20 @@ These methods may be removed in future versions.
 * [proxy\_request](#proxy_request)
 * [proxy\_response](#proxy_response)
 
+## Installation
+
+This module is located at:
+https://luarocks.org/modules/pintsized/lua-resty-http
+
+Install it with:
+```
+luarocks install lua-resty-http <version> && luarocks install lua-resty-openssl
+```
+
+Appending the version to the `luarocks` installation command avoids migration conflicts. The `lua-resty-openssl` package is a prerequisite for all HTTP connections.
+
+**Note**: The [OpenResty Package Manager (OPM) alternative](https://opm.openresty.org/package/pintsized/lua-resty-http/) is dead. No new versions can be uploaded there. Please migrate to `luarocks` instead.
+
 ## Usage
 
 There are two basic modes of operation:
