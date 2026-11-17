@@ -64,7 +64,7 @@ luarocks install lua-resty-http <version>
 
 Appending the version to the `luarocks` installation command avoids migration conflicts.
 
-The `lua-resty-openssl` package is optional. It is only required for mTLS (client certificate) connections. Install it with `luarocks install lua-resty-openssl` if you need them. Without it, such connections fail with an error and a warning is logged.
+The `lua-resty-openssl` package is optional. It is only required for mTLS (client certificate) connections. Install it with `luarocks install lua-resty-openssl` if you need them. Without it, such connections fail with an error and a warning is logged once per worker.
 
 **Note**: The [OpenResty Package Manager (OPM) alternative](https://opm.openresty.org/package/pintsized/lua-resty-http/) is dead. No new versions can be uploaded there. Please migrate to `luarocks` instead.
 

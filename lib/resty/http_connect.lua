@@ -16,6 +16,8 @@ local openssl_available, openssl_err = xpcall(function()
     lib_x509 = require("resty.openssl.x509")
     lib_pkey = require("resty.openssl.pkey")
 end, debug.traceback)
+-- the warning below is only logged once per worker to avoid flooding the log
+local openssl_warned
 
 --[[
 A connection function that incorporates:
@@ -188,9 +190,12 @@ local function connect(self, options)
         end
 
         if not openssl_available then
-            ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, \z
-                               mTLS isn't supported without lua-resty-openssl:\n",
-                    openssl_err)
+            if not openssl_warned then
+                openssl_warned = true
+                ngx_log(ngx_WARN, "failed to load module `resty.openssl.*`, \z
+                                   mTLS isn't supported without lua-resty-openssl:\n",
+                        openssl_err)
+            end
             return nil, "module `resty.openssl.*` not available, mTLS isn't supported without lua-resty-openssl"
         end
 
