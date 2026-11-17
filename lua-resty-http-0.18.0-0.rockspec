@@ -11,7 +11,8 @@ description = {
     maintainer = "James Hurst <james@pintsized.co.uk>"
 }
 dependencies = {
-    "lua >= 5.1"
+    "lua >= 5.1",
+    "lua-resty-string"
 }
 build = {
     type = "builtin",
