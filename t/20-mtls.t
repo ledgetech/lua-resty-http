@@ -318,3 +318,100 @@ nil
 400
 --- skip_nginx
 4: < 1.21.4
+
+
+
+=== TEST 5: Missing lua-resty-openssl only logs a warning once per worker when mTLS is requested
+--- http_config eval: $::mtls_http_config
+--- config eval
+"
+lua_ssl_trusted_certificate $::HtmlDir/test.crt;
+
+location /t {
+    content_by_lua_block {
+        local f = assert(io.open('$::HtmlDir/mtls_client.crt'))
+        local cert_data = f:read('*a')
+        f:close()
+
+        f = assert(io.open('$::HtmlDir/mtls_client.key'))
+        local key_data = f:read('*a')
+        f:close()
+
+        local ssl = require('ngx.ssl')
+
+        local cert = assert(ssl.parse_pem_cert(cert_data))
+        local key = assert(ssl.parse_pem_priv_key(key_data))
+
+        -- simulate a missing lua-resty-openssl and reload the connect module
+        package.loaded['resty.openssl.x509.chain'] = nil
+        package.preload['resty.openssl.x509.chain'] = function()
+            error('module not found')
+        end
+        package.loaded['resty.http_connect'] = nil
+
+        for i = 1, 3 do
+            local httpc = assert(require('resty.http').new())
+
+            local ok, err = httpc:connect {
+              scheme = 'https',
+              host = 'unix:$::HtmlDir/mtls.sock',
+              ssl_client_cert = cert,
+              ssl_client_priv_key = key,
+            }
+
+            ngx.say(ok, ' ', err)
+        end
+    }
+}
+"
+--- user_files eval: $::mtls_user_files
+--- request
+GET /t
+--- response_body
+nil module `resty.openssl.*` not available, mTLS isn't supported without lua-resty-openssl
+nil module `resty.openssl.*` not available, mTLS isn't supported without lua-resty-openssl
+nil module `resty.openssl.*` not available, mTLS isn't supported without lua-resty-openssl
+--- grep_error_log eval: qr/failed to load module `resty\.openssl\.\*`/
+--- grep_error_log_out
+failed to load module `resty.openssl.*`
+--- no_error_log
+[error]
+--- skip_nginx
+2: < 1.21.4
+
+
+
+=== TEST 6: Missing lua-resty-openssl does not log anything without mTLS
+--- http_config eval: $::mtls_http_config
+--- config eval
+"
+lua_ssl_trusted_certificate $::HtmlDir/test.crt;
+
+location /t {
+    content_by_lua_block {
+        -- simulate a missing lua-resty-openssl and reload the connect module
+        package.loaded['resty.openssl.x509.chain'] = nil
+        package.preload['resty.openssl.x509.chain'] = function()
+            error('module not found')
+        end
+        package.loaded['resty.http_connect'] = nil
+
+        local httpc = assert(require('resty.http').new())
+
+        local ok, err = httpc:connect {
+          scheme = 'https',
+          host = 'unix:$::HtmlDir/mtls.sock',
+        }
+
+        ngx.say(ok, ' ', err)
+        httpc:close()
+    }
+}
+"
+--- user_files eval: $::mtls_user_files
+--- request
+GET /t
+--- no_error_log
+[error]
+[warn]
+failed to load module
