@@ -168,7 +168,7 @@ scheme: https, host: example.com, http_proxy: http_proxy, https_proxy: nil, prox
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
 
         location / {
             content_by_lua_block {
@@ -182,8 +182,8 @@ scheme: https, host: example.com, http_proxy: http_proxy, https_proxy: nil, prox
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:8080",
-                https_proxy = "http://127.0.0.1:8080"
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1"
             })
 
             -- request should go to the proxy server
@@ -213,7 +213,7 @@ GET /lua
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
 
         location / {
             content_by_lua_block {
@@ -227,8 +227,8 @@ GET /lua
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:8080",
-                https_proxy = "http://127.0.0.1:8080"
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1"
             })
 
             -- request should go to the proxy server
@@ -263,8 +263,8 @@ GET /lua
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:12345",
-                https_proxy = "http://127.0.0.1:12345"
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1"
             })
 
             -- Slight Hack: temporarily change the module global user agent to make it
@@ -287,7 +287,7 @@ GET /lua
             ngx.say(err)
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_query eval
 qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Host: 127.0.0.1:443\r\n.*/s
 
@@ -313,7 +313,7 @@ GET /lua
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
 
         location / {
             content_by_lua_block {
@@ -327,9 +327,9 @@ GET /lua
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:8080",
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
-                https_proxy = "http://127.0.0.1:8080",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 https_proxy_authorization = "Basic ZGVtbzpwYXNz"
             })
 
@@ -364,9 +364,9 @@ Basic ZGVtbzp0ZXN0
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:12345",
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
-                https_proxy = "http://127.0.0.1:12345",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 https_proxy_authorization = "Basic ZGVtbzpwYXNz"
             })
 
@@ -390,7 +390,7 @@ Basic ZGVtbzp0ZXN0
             ngx.say(err)
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_query eval
 qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzpwYXNz\r\n.*/s
 
@@ -416,7 +416,7 @@ GET /lua
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
 
         location / {
             content_by_lua_block {
@@ -430,9 +430,9 @@ GET /lua
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:8080",
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
-                https_proxy = "http://127.0.0.1:8080",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 https_proxy_authorization = "Basic ZGVtbzpwYXNz"
             })
 
@@ -471,9 +471,9 @@ Basic ZGVtbzp3b3Jk
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:12345",
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 http_proxy_authorization = "Basic ZGVtbzp0ZXN0",
-                https_proxy = "http://127.0.0.1:12345",
+                https_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1",
                 https_proxy_authorization = "Basic ZGVtbzpwYXNz"
             })
 
@@ -501,7 +501,7 @@ Basic ZGVtbzp3b3Jk
             ngx.say(err)
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_query eval
 qr/CONNECT 127.0.0.1:443 HTTP\/1.1\r\n.*Proxy-Authorization: Basic ZGVtbzp3b3Jk\r\n.*/s
 

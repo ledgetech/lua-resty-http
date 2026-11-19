@@ -231,7 +231,7 @@ connection must be closed
             httpc:connect({
                 scheme = "http",
                 host = "127.0.0.1",
-                port = 12345,
+                port = $TEST_NGINX_RAND_PORT_1,
             })
 
             local res, err = httpc:request{
@@ -272,7 +272,7 @@ connection must be closed
     }
 --- request
 GET /a
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 HTTP/1.0 200 OK
 Date: Fri, 08 Aug 2016 08:12:31 GMT
@@ -386,7 +386,7 @@ keep-alive
             assert(httpc:connect({
                 scheme = "http",
                 host = "127.0.0.1",
-                port = 12345,
+                port = $TEST_NGINX_RAND_PORT_1,
             }), "connect should return positively")
 
             local res = httpc:request({
@@ -420,7 +420,7 @@ keep-alive
             ngx.say(httpc:get_reused_times())
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 HTTP/1.1 200 OK
 Date: Wed, 08 Aug 2018 17:00:00 GMT

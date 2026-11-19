@@ -88,7 +88,13 @@ Host: www.google.com
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
+
+        location / {
+            content_by_lua_block {
+                ngx.print(ngx.var.http_host)
+            }
+        }
     }
 --- config
     location /lua {
@@ -97,15 +103,21 @@ Host: www.google.com
             local http = require "resty.http"
             local httpc = http.new()
 
-            local res, err = httpc:request_uri("http://127.0.0.1:8080")
+            local res, err = httpc:request_uri("http://127.0.0.1:$TEST_NGINX_RAND_PORT_1")
+            if not res then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            -- the server echoed the Host header it received
+            ngx.print(res.body)
         ';
     }
 --- request
 GET /lua
 --- no_error_log
 [error]
---- error_log
-Host: 127.0.0.1:8080
+--- response_body: 127.0.0.1:$TEST_NGINX_RAND_PORT_1
 
 
 
@@ -115,10 +127,16 @@ Host: 127.0.0.1:8080
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
-        listen *:8081 ssl;
+        listen *:$TEST_NGINX_RAND_PORT_1;
+        listen *:$TEST_NGINX_RAND_PORT_2 ssl;
         ssl_certificate ../html/test.crt;
         ssl_certificate_key ../html/test.key;
+
+        location / {
+            content_by_lua_block {
+                ngx.print(ngx.var.http_host)
+            }
+        }
     }
 --- config
     location /lua {
@@ -127,7 +145,14 @@ Host: 127.0.0.1:8080
             local http = require "resty.http"
             local httpc = http.new()
 
-            local res, err = httpc:request_uri("https://127.0.0.1:8081", { ssl_verify = false })
+            local res, err = httpc:request_uri("https://127.0.0.1:$TEST_NGINX_RAND_PORT_2", { ssl_verify = false })
+            if not res then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            -- the server echoed the Host header it received
+            ngx.print(res.body)
         ';
     }
 --- user_files eval
@@ -139,8 +164,7 @@ $::TestCertificate"
 GET /lua
 --- no_error_log
 [error]
---- error_log
-Host: 127.0.0.1:8081
+--- response_body: 127.0.0.1:$TEST_NGINX_RAND_PORT_2
 
 
 
@@ -182,7 +206,13 @@ Unable to generate a useful Host header for a unix domain socket. Please provide
     error_log logs/error.log debug;
     resolver 8.8.8.8;
     server {
-        listen *:8080;
+        listen *:$TEST_NGINX_RAND_PORT_1;
+
+        location / {
+            content_by_lua_block {
+                ngx.print(ngx.var.http_host)
+            }
+        }
     }
 
 --- config
@@ -192,14 +222,20 @@ Unable to generate a useful Host header for a unix domain socket. Please provide
             local http = require "resty.http"
             local httpc = http.new()
             httpc:set_proxy_options({
-                http_proxy = "http://127.0.0.1:8080"
+                http_proxy = "http://127.0.0.1:$TEST_NGINX_RAND_PORT_1"
             })
-            local res, err = httpc:request_uri("http://127.0.0.1:8081")
+            local res, err = httpc:request_uri("http://127.0.0.1:$TEST_NGINX_RAND_PORT_2")
+            if not res then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            -- the proxy echoed the Host header it received
+            ngx.print(res.body)
         ';
     }
 --- request
 GET /lua
 --- no_error_log
 [error]
---- error_log
-Host: 127.0.0.1:8081
+--- response_body: 127.0.0.1:$TEST_NGINX_RAND_PORT_2
