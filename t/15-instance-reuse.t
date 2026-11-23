@@ -45,7 +45,7 @@ location /a {
         assert(res1 ~= res2, "responses should be unique tables")
         assert(res1.headers ~= res2.headers, "headers should be unique tables")
 
-        assert(httpc:connect("127.0.0.1", 12345),
+        assert(httpc:connect("127.0.0.1", $TEST_NGINX_RAND_PORT_1),
             "connect should return positively")
 
         local res3 = httpc:request({ path = "/b" })
@@ -69,7 +69,7 @@ location /b {
 location /c {
     echo "c";
 }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 HTTP/1.0 200 OK
 Date: Fri, 08 Aug 2016 08:12:31 GMT

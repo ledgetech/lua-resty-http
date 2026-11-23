@@ -320,7 +320,7 @@ not initialized
             assert(httpc:connect{
                 scheme = "http",
                 host = "127.0.0.1",
-                port = 12345,
+                port = $TEST_NGINX_RAND_PORT_1,
             }, "connect should return positively")
 
             local res = httpc:request({ path = "/b" })
@@ -331,7 +331,7 @@ not initialized
             ngx.print(res:read_body())
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 HTTP/1.0 200 OK
 Date: Mon, 23 Jul 2018 13:00:00 GMT
@@ -359,12 +359,12 @@ OK
         content_by_lua_block {
             local http = require "resty.http"
             local httpc = http.new()
-            local res, err = httpc:request_uri("http://127.0.0.1:12345")
+            local res, err = httpc:request_uri("http://127.0.0.1:$TEST_NGINX_RAND_PORT_1")
 
             assert(err == "couldn't parse HTTP version from response status line: TEAPOT/1.1 OMG")
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 TEAPOT/1.1 OMG
 Server: Teapot
@@ -385,12 +385,12 @@ GET /a
         content_by_lua_block {
             local http = require "resty.http"
             local httpc = http.new()
-            local res, err = httpc:request_uri("http://127.0.0.1:12345")
+            local res, err = httpc:request_uri("http://127.0.0.1:$TEST_NGINX_RAND_PORT_1")
 
             assert(err == "couldn't parse status code from response status line: HTTP/1.1 OMG")
         }
     }
---- tcp_listen: 12345
+--- tcp_listen: $TEST_NGINX_RAND_PORT_1
 --- tcp_reply
 HTTP/1.1 OMG
 Server: Teapot
